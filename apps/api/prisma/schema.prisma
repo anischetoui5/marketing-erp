@@ -1,0 +1,448 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum user_role {
+  admin
+  marketing_manager
+  marketing_agent
+  production_manager
+  production_agent
+}
+
+enum department {
+  marketing
+  production
+}
+
+enum project_status {
+  draft
+  active
+  paused
+  completed
+  archived
+}
+
+enum project_objective {
+  awareness
+  engagement
+  traffic
+  leads
+  sales
+  conversions
+}
+
+enum task_status {
+  todo
+  in_progress
+  review
+  revision
+  approved
+  done
+}
+
+enum task_priority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum notification_type {
+  task_assigned
+  task_status
+  report_ready
+  client_review
+}
+
+enum client_approval_status {
+  none
+  pending
+  client_approved
+  client_rejected
+}
+
+enum sync_job_status {
+  running
+  succeeded
+  failed
+}
+
+enum report_status {
+  generating
+  ready
+  failed
+}
+
+// ─── Sprint 1 Models ──────────────────────────────────────────────────────────
+
+model users {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                   String    @unique
+  password_hash           String?
+  full_name               String
+  role                    user_role
+  department              department?
+  is_active               Boolean   @default(true)
+  invitation_token        String?
+  invitation_expires_at   DateTime?
+  failed_login_attempts   Int       @default(0)
+  locked_until            DateTime?
+  timezone                String    @default("UTC")
+  created_at              DateTime  @default(now())
+  updated_at              DateTime  @updatedAt
+
+  refresh_tokens          refresh_tokens[]
+  audit_logs              audit_log[]
+  projects_created        projects[]        @relation("ProjectCreator")
+  project_memberships     project_users[]
+  tasks_created           tasks[]           @relation("TaskCreator")
+  task_assignments        task_assignees[]
+  comments                task_comments[]
+  notifications           notifications[]
+  sync_jobs_triggered     sync_jobs[]        @relation("SyncJobTrigger")
+  reports_created         reports[]          @relation("ReportCreator")
+  task_attachments        task_attachments[]  @relation("AttachmentUploader")
+  budget_entries          budget_entries[]    @relation("BudgetEntryCreator")
+
+  @@map("users")
+}
+
+model refresh_tokens {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String    @db.Uuid
+  token_hash  String    @unique
+  expires_at  DateTime
+  revoked_at  DateTime?
+  created_at  DateTime  @default(now())
+
+  user        users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model clients {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_name   String
+  contact_name   String?
+  contact_email  String?
+  phone          String?
+  industry       String?
+  notes          String?
+  is_archived    Boolean   @default(false)
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  client_users   client_users[]
+  projects       projects[]
+
+  @@map("clients")
+}
+
+
+model client_users {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  client_id              String    @db.Uuid
+  email                  String    @unique
+  full_name              String
+  password_hash          String?
+  is_active              Boolean   @default(true)
+  invitation_token       String?
+  invitation_expires_at  DateTime?
+  failed_login_attempts  Int       @default(0)
+  locked_until           DateTime?
+  created_at             DateTime  @default(now())
+  updated_at             DateTime  @updatedAt
+
+  client                 clients   @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  client_refresh_tokens  client_refresh_tokens[]
+  notifications          notifications[]
+  reviewed_tasks         tasks[]   @relation("TaskClientReview")
+
+  @@map("client_users")
+}
+
+model client_refresh_tokens {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  client_user_id String    @db.Uuid
+  token_hash     String    @unique
+  expires_at     DateTime
+  revoked_at     DateTime?
+  created_at     DateTime  @default(now())
+
+  client_user    client_users @relation(fields: [client_user_id], references: [id], onDelete: Cascade)
+
+  @@map("client_refresh_tokens")
+}
+
+model audit_log {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actor_id        String?   @db.Uuid
+  actor_type      String    @default("user")
+  actor_email     String?
+  action          String
+  entity_type     String?
+  entity_id       String?
+  previous_state  Json?
+  new_state       Json?
+  ip_address      String?
+  created_at      DateTime  @default(now())
+
+  user            users?    @relation(fields: [actor_id], references: [id], onDelete: SetNull)
+
+  @@map("audit_log")
+}
+
+// ─── Sprint 4 Models ──────────────────────────────────────────────────────────
+
+model task_attachments {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_id      String   @db.Uuid
+  uploaded_by  String   @db.Uuid
+  filename     String
+  file_key     String
+  file_size    Int
+  mime_type    String
+  created_at   DateTime @default(now())
+
+  task         tasks    @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  uploader     users    @relation("AttachmentUploader", fields: [uploaded_by], references: [id], onDelete: Cascade)
+
+  @@map("task_attachments")
+}
+
+model budget_entries {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id   String   @db.Uuid
+  created_by   String   @db.Uuid
+  amount       Decimal  @db.Decimal(12, 2)
+  category     String
+  description  String?
+  entry_date   DateTime @db.Date
+  created_at   DateTime @default(now())
+
+  project      projects @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  creator      users    @relation("BudgetEntryCreator", fields: [created_by], references: [id])
+
+  @@map("budget_entries")
+}
+
+// ─── Sprint 2 Models ──────────────────────────────────────────────────────────
+
+model projects {
+  id                   String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  client_id            String            @db.Uuid
+  name                 String
+  objective            project_objective
+  status               project_status    @default(draft)
+  start_date           DateTime?
+  end_date             DateTime?
+  budget_total         Decimal?          @db.Decimal(12, 2)
+  budget_currency      String            @default("USD")
+  meta_ads_account_id  String?
+  created_by           String            @db.Uuid
+  created_at           DateTime          @default(now())
+  updated_at           DateTime          @updatedAt
+
+  client               clients           @relation(fields: [client_id], references: [id])
+  creator              users             @relation("ProjectCreator", fields: [created_by], references: [id])
+  project_users        project_users[]
+  tasks                tasks[]
+  analytics_records    analytics_records[]
+  sync_jobs            sync_jobs[]
+  ai_insights          ai_insights[]
+  reports              reports[]
+  budget_entries       budget_entries[]
+
+  @@map("projects")
+}
+
+model project_users {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id  String    @db.Uuid
+  user_id     String    @db.Uuid
+  created_at  DateTime  @default(now())
+
+  project     projects  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  user        users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, user_id])
+  @@map("project_users")
+}
+
+model tasks {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id      String        @db.Uuid
+  title           String
+  description     String?
+  department      department
+  status          task_status   @default(todo)
+  priority        task_priority @default(medium)
+  due_date                 DateTime?
+  revision_count           Int                    @default(0)
+  client_approval          client_approval_status @default(none)
+  client_rejection_comment String?
+  client_reviewed_by       String?                @db.Uuid
+  client_reviewed_at       DateTime?
+  created_by               String                 @db.Uuid
+  created_at               DateTime               @default(now())
+  updated_at               DateTime               @updatedAt
+
+  project         projects         @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  creator         users            @relation("TaskCreator", fields: [created_by], references: [id])
+  client_reviewer client_users?    @relation("TaskClientReview", fields: [client_reviewed_by], references: [id], onDelete: SetNull)
+  task_assignees  task_assignees[]
+  comments        task_comments[]
+  attachments     task_attachments[]
+
+  @@map("tasks")
+}
+
+model task_assignees {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_id     String    @db.Uuid
+  user_id     String    @db.Uuid
+  created_at  DateTime  @default(now())
+
+  task        tasks     @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  user        users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([task_id, user_id])
+  @@map("task_assignees")
+}
+
+model task_comments {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_id     String    @db.Uuid
+  author_id   String    @db.Uuid
+  body        String
+  created_at  DateTime  @default(now())
+
+  task        tasks     @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  author      users     @relation(fields: [author_id], references: [id], onDelete: Cascade)
+
+  @@map("task_comments")
+}
+
+model notifications {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id         String?           @db.Uuid
+  client_user_id  String?           @db.Uuid
+  type            notification_type
+  message         String
+  link            String?
+  is_read         Boolean           @default(false)
+  created_at      DateTime          @default(now())
+
+  user            users?            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  client_user     client_users?     @relation(fields: [client_user_id], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// ─── Sprint 3 Models ──────────────────────────────────────────────────────────
+
+model system_config {
+  key        String   @id
+  value      String
+  updated_at DateTime @updatedAt
+
+  @@map("system_config")
+}
+
+model analytics_records {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id       String   @db.Uuid
+  campaign_id      String
+  campaign_name    String
+  record_date      DateTime @db.Date
+  impressions      Float    @default(0)
+  clicks           Float    @default(0)
+  spend            Float    @default(0)
+  reach            Float    @default(0)
+  conversions      Float    @default(0)
+  conversion_value Float    @default(0)
+  ctr              Float?
+  cpc              Float?
+  cpa              Float?
+  roas             Float?
+  cpm              Float?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  project          projects @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, campaign_id, record_date])
+  @@map("analytics_records")
+}
+
+model sync_jobs {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id    String          @db.Uuid
+  status        sync_job_status @default(running)
+  triggered_by  String?         @db.Uuid
+  started_at    DateTime        @default(now())
+  finished_at   DateTime?
+  error_msg     String?
+  created_at    DateTime        @default(now())
+
+  project       projects        @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  triggered_user users?         @relation("SyncJobTrigger", fields: [triggered_by], references: [id], onDelete: SetNull)
+  ai_insights   ai_insights[]
+
+  @@map("sync_jobs")
+}
+
+model ai_insights {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id        String   @db.Uuid
+  sync_job_id       String?  @db.Uuid
+  summary           String?
+  insights          Json?
+  recommendations   Json?
+  prompt_tokens     Int?
+  completion_tokens Int?
+  cost_usd          Float?
+  failed            Boolean  @default(false)
+  error_msg         String?
+  retry_count       Int      @default(0)
+  generated_at      DateTime @default(now())
+
+  project           projects  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  sync_job          sync_jobs? @relation(fields: [sync_job_id], references: [id], onDelete: SetNull)
+
+  @@map("ai_insights")
+}
+
+model reports {
+  id                   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id           String        @db.Uuid
+  created_by           String        @db.Uuid
+  period_start         DateTime      @db.Date
+  period_end           DateTime      @db.Date
+  status               report_status @default(generating)
+  executive_summary    String?
+  performance_overview String?
+  key_insights         Json?
+  recommendations      Json?
+  conclusion           String?
+  shared_with_client   Boolean       @default(false)
+  shared_at            DateTime?
+  prompt_tokens        Int?
+  completion_tokens    Int?
+  cost_usd             Float?
+  created_at           DateTime      @default(now())
+  updated_at           DateTime      @updatedAt
+
+  project              projects      @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  creator              users         @relation("ReportCreator", fields: [created_by], references: [id])
+
+  @@map("reports")
+}

@@ -1,0 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
+@import "tailwindcss";
+
+/* ── Brand tokens + dark defaults ────────────────────────────────────────── */
+:root {
+  --accent:        #4E5ABF;
+  --accent-soft:   rgba(78,90,191,0.15);
+  --accent-glow:   rgba(78,90,191,0.25);
+  --purple-deep:   #1C0E42;
+  --purple-mid:    #3D1F5F;
+  --violet:        #7B6CF0;
+  --crimson:       #7E0B1C;
+  --sidebar-bg:    #0c0a1a;
+  --sidebar-rule:  rgba(255,255,255,0.07);
+
+  /* dark theme as default fallback */
+  --bg:            #09071a;
+  --panel:         #0f0d25;
+  --surface:       rgba(255,255,255,0.04);
+  --surface-2:     rgba(255,255,255,0.025);
+  --border:        rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.14);
+  --text:          rgba(255,255,255,0.92);
+  --text-2:        rgba(255,255,255,0.45);
+  --text-3:        rgba(255,255,255,0.2);
+  --card-shadow:   0 1px 3px rgba(0,0,0,0.4), 0 8px 32px rgba(0,0,0,0.3);
+  --hover-bg:      rgba(78,90,191,0.08);
+}
+
+/* ── Light theme ─────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg:            #F4F2F8;
+  --panel:         #ffffff;
+  --surface:       #ffffff;
+  --surface-2:     rgba(28,14,66,0.03);
+  --border:        rgba(28,14,66,0.1);
+  --border-strong: rgba(28,14,66,0.2);
+  --text:          #1C0E42;
+  --text-2:        rgba(28,14,66,0.5);
+  --text-3:        rgba(28,14,66,0.3);
+  --card-shadow:   0 1px 3px rgba(28,14,66,0.08), 0 4px 16px rgba(28,14,66,0.04);
+  --hover-bg:      rgba(28,14,66,0.04);
+}
+
+/* ── Dark theme ──────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg:            #09071a;
+  --panel:         #0f0d25;
+  --surface:       rgba(255,255,255,0.04);
+  --surface-2:     rgba(255,255,255,0.025);
+  --border:        rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.14);
+  --text:          rgba(255,255,255,0.92);
+  --text-2:        rgba(255,255,255,0.45);
+  --text-3:        rgba(255,255,255,0.2);
+  --card-shadow:   0 1px 3px rgba(0,0,0,0.4), 0 8px 32px rgba(0,0,0,0.3);
+  --hover-bg:      rgba(78,90,191,0.08);
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.4s ease, color 0.4s ease;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(78,90,191,0.3); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(78,90,191,0.6); }
+
+/* ── Selection ───────────────────────────────────────────────────────────── */
+::selection { background: rgba(78,90,191,0.3); color: inherit; }
+
+/* ── Keyframes ───────────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 0.9; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}

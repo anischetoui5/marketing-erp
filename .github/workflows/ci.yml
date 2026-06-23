@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+
+  # ── Lint & Test API ─────────────────────────────────────────────────────────
+  lint-api:
+    name: Lint API
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --workspace=apps/api
+      - run: npm run lint
+
+  test-api:
+    name: Test API
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --workspace=apps/api
+      - run: npx prisma generate
+      - run: npm test
+
+  # ── Docker builds ───────────────────────────────────────────────────────────
+  build-api:
+    name: Build API image
+    runs-on: ubuntu-latest
+    needs: [lint-api, test-api]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          tags: marketing-erp/api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-web:
+    name: Build Web image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: false
+          tags: marketing-erp/web:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,0 +1,590 @@
+================================================================================
+         MARKETINGERP — PLATFORM FUNCTIONALITY SUMMARY
+================================================================================
+
+This document describes every feature and capability of the MarketingERP
+platform from a user perspective. It covers both the internal staff dashboard
+and the client-facing portal.
+
+================================================================================
+OVERVIEW
+================================================================================
+
+MarketingERP is a web-based management platform for marketing and creative
+agencies. It connects all moving parts of an agency's work — projects, tasks,
+clients, budgets, analytics, and AI-generated reports — in one place.
+
+The platform has two separate portals:
+
+  1. Internal Dashboard  — for agency employees (admins, managers, agents)
+  2. Client Portal       — for agency clients (read-only access + task review)
+
+Both portals have their own login page, authentication system, and navigation.
+
+================================================================================
+USER ROLES
+================================================================================
+
+There are five internal roles and one client role:
+
+  ADMIN
+  ─────
+  Full access to everything. Can create any user role, manage all projects,
+  view all tasks, access the audit log, and delete entities.
+
+  MARKETING MANAGER
+  ─────────────────
+  Manages the marketing side of the agency. Can create projects, invite
+  marketing agents, assign tasks, approve task status, generate and share
+  reports, trigger Meta Ads syncs, and manage project budgets.
+
+  MARKETING AGENT
+  ───────────────
+  Works on tasks assigned to them. Can move tasks through the work stages
+  (todo → in progress → review), view their assigned projects, add comments,
+  and upload files.
+
+  PRODUCTION MANAGER
+  ──────────────────
+  Same scope as the marketing manager but for the production department.
+  Can create production tasks, invite production agents, and manage their
+  team's workload.
+
+  PRODUCTION AGENT
+  ────────────────
+  Same scope as the marketing agent but for the production department.
+
+  CLIENT USER (Portal)
+  ────────────────────
+  A contact person at the agency's client company. Can only log in through
+  the Client Portal. Sees only their company's projects, reviews submitted
+  deliverables, and reads shared reports.
+
+================================================================================
+AUTHENTICATION
+================================================================================
+
+HOW LOGIN WORKS
+  Users visit the login page and enter their email and password. If valid,
+  they receive a short-lived access token (15 minutes) and a longer refresh
+  token (7 days). The access token is used for all API requests. When it
+  expires, the system automatically obtains a new one using the refresh token
+  — the user does not have to log in again.
+
+INVITATION SYSTEM
+  Users are never created by registering themselves. An admin or manager
+  creates the account and the system sends an invitation email (via Resend).
+  The invited user clicks the link in the email, sets their password, and
+  their account is activated.
+
+ACCOUNT PROTECTION
+  After 5 failed login attempts, the account is locked for 30 minutes.
+
+CLIENT PORTAL LOGIN
+  Clients have a completely separate login at /portal/login. Their credentials
+  are stored separately and their tokens are independent of internal staff
+  tokens.
+
+TOKEN REFRESH
+  All API calls go through an Axios interceptor. If a request fails because
+  the access token expired, the interceptor automatically calls the refresh
+  endpoint, gets a new token, and retries the original request — invisibly
+  to the user.
+
+================================================================================
+INTERNAL DASHBOARD PAGES
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+DASHBOARD (Home Page)
+────────────────────────────────────────────────────────────────────────────────
+
+The first page after login. Shows a real-time overview of the agency's state.
+
+  STAT CARDS (with animated count-up)
+    • Total number of active projects
+    • Total number of tasks across all projects
+    • Total team members
+    • Average campaign performance score
+
+  ANALYTICS CHART
+    A time-series area chart showing impressions, clicks, and ad spend over
+    the last 30 days, pulled from synced Meta Ads data.
+
+  RECENT PROJECTS
+    A list of the most recently created or updated projects with their status
+    badge and client name.
+
+  RECENT TASKS
+    A list of the most recently created tasks showing title, status, and
+    priority colour-coded badges.
+
+The dashboard auto-loads on page visit and gives a quick snapshot without
+needing to navigate to individual sections.
+
+────────────────────────────────────────────────────────────────────────────────
+CLIENTS PAGE
+────────────────────────────────────────────────────────────────────────────────
+
+A paginated table showing all client companies the agency works with.
+
+  VISIBLE COLUMNS: Company name, contact person, industry, contact email.
+
+  ACCESS: Admin and Marketing Manager can view all clients.
+          Marketing Agents can also view (read-only).
+
+  There is no create-client button here — client creation is done through
+  the API (or an admin panel, future roadmap). The page is purely a directory.
+
+────────────────────────────────────────────────────────────────────────────────
+USERS PAGE
+────────────────────────────────────────────────────────────────────────────────
+
+Manages the internal team members.
+
+  ADMIN VIEW
+    Sees all users regardless of role. Can invite any role: admin, marketing
+    manager, marketing agent, production manager, or production agent.
+    The invite form requires full name, email, and role. Department is optional.
+
+  MANAGER VIEW (Marketing Manager or Production Manager)
+    The page is titled "My Agents" and shows only the agents under that
+    manager's department (marketing agents for marketing managers, production
+    agents for production managers). Can invite only the corresponding agent
+    role. The role field is pre-filled and locked — managers cannot change
+    the role they invite.
+
+  INVITE FLOW
+    Fill in the form → click "Send Invitation" → the system emails the
+    invitation link → the user accepts and sets a password.
+
+  TABLE COLUMNS: Full name, email, role badge (colour-coded), department,
+                 active status (green/red indicator).
+
+────────────────────────────────────────────────────────────────────────────────
+PROJECTS PAGE
+────────────────────────────────────────────────────────────────────────────────
+
+A list of all projects with filtering by status.
+
+  FILTER BY STATUS: All / Draft / Active / Paused / Completed / Archived
+  PAGINATION: 20 projects per page with prev/next controls
+
+  EACH PROJECT CARD SHOWS:
+    • Project name (links to detail page)
+    • Client company name
+    • Objective badge (Awareness, Engagement, Traffic, etc.)
+    • Status badge (colour-coded)
+    • Budget and currency
+    • Start and end dates
+    • Team member count
+
+  CREATE PROJECT BUTTON (Admin and Marketing Manager only)
+    Opens a form to create a new project. Fields:
+      - Project name (required)
+      - Client (dropdown of all clients)
+      - Campaign objective (7 options)
+      - Status (defaults to Draft)
+      - Start date and end date
+      - Budget total and currency
+      - Meta Ads Account ID (for analytics integration)
+
+  ROLE SCOPING:
+    Agents only see projects they have been added to as team members.
+    Managers and admins see all projects.
+
+────────────────────────────────────────────────────────────────────────────────
+PROJECT DETAIL PAGE
+────────────────────────────────────────────────────────────────────────────────
+
+The most feature-rich page in the platform. Accessed by clicking any project.
+
+  HERO CARD
+    Shows project name, client, status badge (with inline status-change
+    dropdown for managers), campaign objective, budget, date range, team
+    size, and task count.
+
+  The page has four tabs:
+
+  — OVERVIEW TAB —
+    Shows the project creation date and Meta Ads account ID if configured.
+
+  — TASKS TAB —
+    A compact list of all tasks in the project, showing title, department,
+    status badge, and priority badge. Clicking "View kanban →" opens the
+    full kanban board for that project.
+
+  — TEAM TAB —
+    Shows all team members with their avatar initials, name, role, and
+    department. Managers can add new members (pick from a dropdown of
+    non-assigned users) and remove existing ones.
+
+  — ANALYTICS TAB —
+    Full analytics dashboard for the project:
+      • Sync Status Bar: shows when data was last synced, allows manual
+        sync trigger (queries the Meta Ads API and stores results).
+      • KPI Cards: Impressions, Clicks, Spend, Reach, Conversions, CTR,
+        CPC, ROAS — compared to the previous period.
+      • Performance Chart: daily time-series area chart for impressions,
+        clicks, and spend.
+      • Campaign Table: per-campaign breakdown of all KPIs.
+      • AI Insights Panel: after a sync, the system automatically sends
+        the data to Claude AI, which returns a structured analysis with
+        a summary paragraph, numbered insights, and numbered recommendations.
+
+  Budget is no longer a tab on this page — it has its own standalone page
+  (see BUDGET PAGE below), reachable from the sidebar.
+
+────────────────────────────────────────────────────────────────────────────────
+BUDGET PAGE
+────────────────────────────────────────────────────────────────────────────────
+
+A standalone financial-tracking page (sidebar → Insights → Budget), separate
+from the project detail view so managers can review spend across any project
+without drilling into it first.
+
+  ACCESS: Admin and Marketing Manager only.
+
+  PROJECT SELECTOR
+    A dropdown at the top of the page lets the user pick which project's
+    budget to view. The rest of the page reloads for the selected project.
+
+  SUMMARY STAT CARDS (4)
+    Budget total, total spent, remaining amount, and percentage used — the
+    percentage card's progress bar is colour-coded (green/amber/red) based
+    on how much of the budget has been consumed.
+
+  CATEGORY BREAKDOWN
+    An animated progress bar per category (Ad Spend, Production, Design,
+    Other) showing how much of total spend falls into each one.
+
+  ENTRIES TABLE
+    Every budget entry for the selected project: amount, category badge,
+    description, date, and who created it.
+
+  ADD ENTRY (Admin / Marketing Manager only)
+    A modal form to log a new expense: amount, category, date, and an
+    optional description. Entries can also be deleted by managers.
+
+────────────────────────────────────────────────────────────────────────────────
+TASKS PAGE (Kanban Board)
+────────────────────────────────────────────────────────────────────────────────
+
+A visual kanban board showing tasks across all projects (or filtered by one).
+
+  COLUMNS: Todo | In Progress | Review | Revision | Approved | Done
+
+  Each column header shows a coloured accent line and the task count.
+  Tasks are displayed as cards with:
+    • Title
+    • Project name
+    • Priority badge (colour-coded: low/medium/high/urgent)
+    • Due date (with red highlight if overdue)
+    • Assignee initials bubbles
+    • Comment count and attachment count
+
+  FILTER BAR
+    Filter by: project, status (jumps to column), priority, assignee,
+    and free-text search.
+
+  TASK DETAIL DRAWER
+    Clicking any task opens a slide-in drawer from the right showing:
+      • Full title and description
+      • Status badge, priority badge, department
+      • Assignees list
+      • Due date
+      • Status transition buttons (based on current user's role and the
+        task's current status — only valid next states are shown)
+      • Comment thread (chronological list, add comment box at the bottom,
+        delete own comments)
+      • Attachments section (upload file, list files with size and type,
+        download link via presigned URL, delete own attachments)
+
+  CREATING A TASK
+    Managers and admins see a "+ New Task" button that opens a creation form.
+    Fields: title, description, project (dropdown), department, assignees,
+    priority, due date.
+
+  STATUS TRANSITIONS (role-enforced at the API level):
+    Agents can move: Todo → In Progress → Review (and back if needed)
+    Managers can: Review → Approved or Revision, Approved → Done
+    Admin can make any transition
+
+  CLIENT APPROVAL OVERLAY
+    When a manager submits a task for client review, an additional status
+    appears: "Pending Review". The client then approves or rejects it through
+    the portal. This is tracked separately from the main task status.
+
+────────────────────────────────────────────────────────────────────────────────
+REPORTS PAGE
+────────────────────────────────────────────────────────────────────────────────
+
+A list of all AI-generated client reports.
+
+  TABLE COLUMNS: Project, client, period (start → end), status, shared indicator.
+
+  STATUSES:
+    • Generating — the AI is currently writing the report
+    • Ready       — report is complete and can be viewed
+    • Failed      — generation encountered an error
+
+  GENERATE REPORT BUTTON (Admin and Marketing Manager)
+    Opens a modal to create a new report. Select the project and date range
+    (period start and end). The system enqueues a background job that:
+      1. Fetches all analytics data for the period
+      2. Fetches all tasks completed in the period
+      3. Sends a detailed prompt to Claude AI
+      4. Stores the structured response (executive summary, performance
+         overview, key insights JSON, recommendations JSON, conclusion)
+      5. Marks the report as "ready" and sends a notification
+
+  REPORT DETAIL PAGE
+    A full-page rendered report with sections:
+      • Executive Summary (opening paragraph)
+      • Performance Overview (narrative about the numbers)
+      • Key Insights (numbered list from Claude's analysis)
+      • Recommendations (numbered action items)
+      • Conclusion
+    A "Share with Client" button makes the report visible in the client portal.
+
+────────────────────────────────────────────────────────────────────────────────
+CALENDAR PAGE
+────────────────────────────────────────────────────────────────────────────────
+
+A monthly calendar view showing all tasks with due dates.
+
+  NAVIGATION: Left/right arrows to move between months. "Today" button to
+              jump back to the current month.
+
+  CALENDAR CELLS
+    Each day shows small coloured bars, one per task due that day.
+    Bar colour represents priority: green (low), amber (medium), red (high).
+    If more than 3 tasks fall on the same day, a "+N more" indicator appears.
+
+  DAY DETAIL PANEL (right side)
+    Clicking a day opens the detail panel showing each task due that day with:
+      • Task title
+      • Priority dot and label
+      • Status label (colour-coded)
+      • Project name
+
+  LEGEND
+    A small priority colour legend in the bottom-right of the side panel.
+
+────────────────────────────────────────────────────────────────────────────────
+AI ASSISTANT (Chat Page)
+────────────────────────────────────────────────────────────────────────────────
+
+A conversational AI assistant powered by Claude, pre-loaded with the user's
+workspace context.
+
+  EMPTY STATE
+    When no conversation has started, the page shows a welcome message and
+    four suggested prompt buttons:
+      • "What's the current status of my projects?"
+      • "Which tasks are overdue right now?"
+      • "What should I prioritise today?"
+      • "Summarise what's waiting for review"
+
+  CHAT INTERFACE
+    Messages appear as chat bubbles. User messages are purple gradient bubbles
+    aligned right. AI responses are surface-coloured bubbles aligned left with
+    a Claude sparkle avatar.
+    A typing indicator (animated dots) shows while the AI is responding.
+
+  INPUT
+    A multi-line textarea with auto-resize. Press Enter to send, Shift+Enter
+    for a new line. The send button becomes active once text is entered.
+
+  CLEAR CHAT
+    A "Clear" button appears in the header once a conversation is started.
+
+  CONTEXT
+    Each message sends the full conversation history to the API. The server
+    injects project, task, and user context into the system prompt before
+    calling Claude, so the assistant knows about the real workspace state.
+
+────────────────────────────────────────────────────────────────────────────────
+AUDIT LOG PAGE (Admin Only)
+────────────────────────────────────────────────────────────────────────────────
+
+A chronological log of all state-changing actions in the system.
+
+  COLUMNS: Actor (email), Action (e.g. "task.status.updated"), Entity type,
+           IP address, When (relative time: "2m ago", "3h ago").
+
+  Every create, update, delete, login, logout, sync, and review action is
+  recorded with the actor's identity, IP address, and timestamps.
+  The log cannot be modified or deleted — it is append-only.
+  Only admins can view this page.
+
+────────────────────────────────────────────────────────────────────────────────
+NOTIFICATIONS
+────────────────────────────────────────────────────────────────────────────────
+
+Real-time notifications delivered via WebSocket (Socket.io).
+
+  BELL ICON (header)
+    Shows a red badge with the unread count. Clicking opens a dropdown panel.
+
+  NOTIFICATION TYPES:
+    • task_assigned   — "You have been assigned to task: [title]"
+    • task_status     — "[Task] moved to [status]"
+    • report_ready    — "Report for [project] is ready"
+    • client_review   — "Client [reviewed/rejected] [task]"
+
+  DROPDOWN PANEL
+    Lists the 10 most recent notifications. Unread items have a blue dot.
+    Clicking a notification marks it as read and navigates to the relevant
+    page (e.g. clicking a task notification opens that task's project page).
+    A "Mark all read" button clears all badges at once.
+
+  HOW IT WORKS
+    On login, the frontend connects to the WebSocket server using the user's
+    access token. Notifications are pushed to the user's private room in
+    real time. No polling — the badge updates the moment an event happens
+    (task assignment, status change, report completion, etc.).
+
+================================================================================
+CLIENT PORTAL
+================================================================================
+
+Clients access a completely separate URL and interface designed for their
+non-technical use. The portal is always light-themed and focused on simplicity.
+
+────────────────────────────────────────────────────────────────────────────────
+CLIENT LOGIN
+────────────────────────────────────────────────────────────────────────────────
+
+A dedicated login page at /portal/login. Clients enter the email and password
+they received via their invitation email. Authentication is completely separate
+from the internal dashboard.
+
+────────────────────────────────────────────────────────────────────────────────
+CLIENT PROJECTS LIST
+────────────────────────────────────────────────────────────────────────────────
+
+After login, the client sees only their company's projects. Each project shows
+the name, status, and objective. Clicking a project opens the detail view.
+
+────────────────────────────────────────────────────────────────────────────────
+CLIENT PROJECT DETAIL
+────────────────────────────────────────────────────────────────────────────────
+
+The client's view of a project. Contains two tabs:
+
+  — OVERVIEW TAB —
+    Shows the project's progress: how many tasks are in each status column.
+    A visual progress summary gives the client a sense of how far along
+    the work is without exposing internal workflow details.
+
+  — REVIEW TAB — (only visible when tasks are pending review)
+    Shows tasks that the agency has submitted for client approval.
+    Each task card shows: title, description, priority, and two action buttons.
+
+    APPROVE BUTTON
+      Clicking approve immediately marks the task as client-approved and sends
+      a notification to the managing team.
+
+    REJECT BUTTON
+      Opens a modal asking for a rejection comment (required — cannot reject
+      without a reason). The comment is saved and the manager is notified.
+      The task goes back to the agency for rework.
+
+────────────────────────────────────────────────────────────────────────────────
+CLIENT REPORTS
+────────────────────────────────────────────────────────────────────────────────
+
+Clients can see reports that the agency has explicitly shared with them.
+Each report shows: project name, period, and a full rendered AI-generated
+document with executive summary, performance overview, insights, recommendations,
+and conclusion.
+
+Reports that have not been shared are invisible to the client.
+
+================================================================================
+CROSS-CUTTING FEATURES
+================================================================================
+
+THEME (DARK / LIGHT)
+  A toggle button in the header switches between dark and light mode. The
+  choice is remembered across sessions. The sidebar always stays dark in both
+  modes.
+
+SKELETON LOADING STATES
+  Every list and table shows animated skeleton placeholder rows while data
+  is loading, preventing layout shifts.
+
+ANIMATED TRANSITIONS
+  Page transitions, stat card entry, drawer slides, and notification pop-ins
+  are all animated using Framer Motion for a polished feel.
+
+REAL-TIME UPDATES
+  Notifications are pushed via WebSocket without any page refresh. The
+  notification badge updates the moment a relevant event happens.
+
+RESPONSIVE WIDTH
+  The notification dropdown and all major containers use responsive sizing
+  to avoid horizontal overflow on smaller screens.
+
+ROLE-SCOPED DATA
+  Every API endpoint that returns a list (projects, tasks, users) is filtered
+  at the database level based on the authenticated user's role. Agents cannot
+  see projects they are not assigned to, even if they know the project ID.
+
+AUDIT TRAIL
+  Every create, update, delete, login, logout, sync, and approval action is
+  logged with full context (actor, entity, IP, timestamp). This is used for
+  compliance and debugging.
+
+AI INTEGRATION (ANTHROPIC CLAUDE)
+  Three Claude-powered features:
+    1. Analytics Insights — automatic analysis after each Meta Ads sync
+    2. Report Generation — on-demand structured report with sections
+    3. AI Chatbot — conversational workspace assistant
+
+FILE STORAGE (AWS S3)
+  Task attachments are stored in S3-compatible object storage. Download links
+  are short-lived presigned URLs (1 hour) — files are never publicly exposed.
+
+BACKGROUND JOBS (BULLMQ + REDIS)
+  Long-running tasks (report generation, Meta Ads sync) are offloaded to
+  background workers via BullMQ. Users receive a notification when the job
+  completes rather than waiting for the HTTP response.
+
+EMAIL NOTIFICATIONS (RESEND)
+  Transactional emails for: invitation acceptance links, and any workflow
+  email notifications configured for future sprints.
+
+================================================================================
+TECHNICAL CONSTRAINTS & DESIGN DECISIONS
+================================================================================
+
+  • Pages do NOT need their own padding — the layout wrapper provides a
+    uniform 28px padding on all sides for every internal dashboard page.
+
+  • The client portal is intentionally always light-themed and uses hardcoded
+    colours rather than CSS variables, because clients should see a consistent
+    branded experience regardless of system preferences.
+
+  • Task status transitions are enforced at the API level (backend state
+    machine), not just the frontend. Even if a client tries to call the API
+    directly, the server rejects invalid transitions.
+
+  • Refresh token rotation: when a refresh token is used, the old one is
+    immediately invalidated and a new one is issued. This prevents token reuse
+    attacks.
+
+  • WebSocket rooms are per-user (room name: "user:{id}"). The server only
+    emits events to the relevant user's room, so users cannot intercept
+    each other's notifications.
+
+  • The budget module stores amounts as PostgreSQL DECIMAL(12,2) to avoid
+    floating-point precision issues with financial figures.
+
+  • All passwords use bcrypt with a cost factor of 12, making brute-force
+    attacks computationally expensive.
+
+================================================================================
+END OF SUMMARY
+================================================================================

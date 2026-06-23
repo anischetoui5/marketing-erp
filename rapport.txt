@@ -1,0 +1,1715 @@
+================================================================================
+         MARKETINGERP PLATFORM — TECHNICAL PROJECT REPORT
+         Full-Stack Development — Academic Final Year Project
+================================================================================
+
+Prepared by : Oussema
+Project type: Full-stack web application (monorepo)
+Platform    : MarketingERP — Agency Management System
+Date        : May 2026
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+  1.  Project Introduction
+  2.  Objectives & Scope
+  3.  Technology Stack
+  4.  System Architecture
+
+  5.  General UML Diagrams
+        5.1  General Use Case Diagram (Full System)
+        5.2  System Architecture Diagram
+        5.3  Class Diagram (Core Domain)
+        5.4  Entity-Relationship Diagram
+        5.5  Component Diagram
+        5.6  Deployment Diagram
+        5.7  General Sequence Diagram (System Overview)
+
+  6.  Sprint Use Case Diagrams
+        6.1  Sprint 1 — Foundation & Authentication
+        6.2  Sprint 2 — Client & Project Management
+        6.3  Sprint 3 — Task Management & Kanban
+        6.4  Sprint 4 — Reports, Budget, Calendar & AI
+        6.5  Sprint 5 — Notifications, Audit Log & Client Portal
+
+  7.  CRUD Sequence Diagrams
+        7.1  Authentication (Login / Logout / Refresh)
+        7.2  User Management       (Create / Read / Update / Delete)
+        7.3  Client Management     (Create / Read / Update / Delete)
+        7.4  Project Management    (Create / Read / Update / Delete)
+        7.5  Task Management       (Create / Read / Update / Delete)
+        7.6  Report Management     (Generate / Read / Share)
+        7.7  Budget Management     (Create / Read / Delete)
+        7.8  Notification Management (Create / Read / Mark-Read)
+        7.9  Audit Log             (Read)
+
+  8.  Sprint Planning & Task Breakdown
+  9.  Product Backlog
+  10. API Reference Summary
+  11. Database Schema Summary
+  12. Security Design
+  13. Conclusion
+
+================================================================================
+1. PROJECT INTRODUCTION
+================================================================================
+
+MarketingERP is a full-stack Enterprise Resource Planning platform designed
+specifically for marketing and creative agencies. It centralises project
+management, task tracking, client relations, analytics, budget control, and
+AI-powered reporting into a single unified web application.
+
+The platform serves two distinct portals:
+
+  Internal Dashboard — used by agency staff across five role tiers:
+    Admin, Marketing Manager, Marketing Agent, Production Manager,
+    Production Agent. Each role has carefully scoped permissions so
+    users only access data relevant to their responsibilities.
+
+  Client Portal — a separate, publicly accessible interface where
+    clients can track their active projects, review and approve tasks
+    submitted for their sign-off, view shared reports, and communicate
+    feedback without needing an internal account.
+
+The system is built as a monorepo (npm workspaces) containing two
+applications: apps/api (NestJS REST + WebSocket server) and apps/web
+(Next.js 16 SPA). They communicate over HTTP/REST and Socket.io in
+real-time.
+
+================================================================================
+2. OBJECTIVES & SCOPE
+================================================================================
+
+Primary objectives:
+  - Provide a centralised workspace for managing the full lifecycle of
+    agency projects — from client acquisition to final delivery.
+  - Automate administrative tasks: AI-generated performance reports,
+    real-time notifications, and background job scheduling.
+  - Offer clients full transparency via a dedicated portal with review
+    and approval workflows.
+  - Enforce strict role-based access control across all resources.
+  - Maintain a complete, immutable audit trail of every sensitive action.
+
+Out of scope:
+  - Payment processing / invoicing
+  - External calendar sync (Google, Outlook)
+  - Mobile native applications
+
+================================================================================
+3. TECHNOLOGY STACK
+================================================================================
+
+  Backend (apps/api)
+  ------------------
+  Runtime         : Node.js 20 LTS
+  Framework       : NestJS 11
+  Language        : TypeScript 5
+  ORM             : Prisma 6 + PostgreSQL 16
+  Auth            : JWT (access 15 min, refresh 7 days), bcrypt
+  Queues          : BullMQ + Redis 7
+  Real-time       : Socket.io + @nestjs/websockets
+  AI              : Anthropic Claude SDK ^0.95 (model: claude-sonnet-4-6)
+  External APIs   : Meta Graph API (Ads sync), Resend (email), AWS S3 (files)
+  Validation      : class-validator + class-transformer
+  Logging/Audit   : Custom AuditLogService (DB-persisted)
+
+  Frontend (apps/web)
+  -------------------
+  Framework       : Next.js 16.2 (App Router)
+  Language        : TypeScript 5
+  Styling         : CSS Variables + Tailwind utilities
+  Animation       : Framer Motion
+  State           : Zustand
+  Icons           : Lucide React
+  Fonts           : Syne (headings) + DM Mono (labels/data)
+
+  Infrastructure
+  --------------
+  Database        : PostgreSQL 16
+  Cache / Queues  : Redis 7
+  Process manager : pm2 (production)
+  Monorepo        : npm workspaces
+
+================================================================================
+4. SYSTEM ARCHITECTURE
+================================================================================
+
+  +------------------+        HTTPS / WS        +----------------------+
+  |                  |<------------------------>|                      |
+  |  apps/web        |                          |  apps/api            |
+  |  Next.js 16      |     REST API (JSON)      |  NestJS 11           |
+  |  (Browser SPA)   |     Socket.io (WS)       |  (HTTP + WebSocket)  |
+  |                  |                          |                      |
+  +------------------+                          +----------+-----------+
+                                                           |
+                                              +-----------+-----------+
+                                              |                       |
+                                    +---------+--------+   +----------+-------+
+                                    |                  |   |                  |
+                                    |  PostgreSQL 16   |   |  Redis 7         |
+                                    |  (Primary DB)    |   |  (Cache + Queue) |
+                                    |                  |   |                  |
+                                    +------------------+   +------------------+
+                                                                    |
+                                                         +----------+--------+
+                                                         |                   |
+                                                         |  BullMQ Workers   |
+                                                         |  (Report Gen,     |
+                                                         |   Meta Ads Sync)  |
+                                                         |                   |
+                                                         +-------------------+
+                                                                    |
+                                                         +----------+--------+
+                                                         |                   |
+                                                         |  External APIs    |
+                                                         |  Anthropic Claude |
+                                                         |  Meta Graph API   |
+                                                         |  Resend / AWS S3  |
+                                                         +-------------------+
+
+================================================================================
+5. GENERAL UML DIAGRAMS
+================================================================================
+
+--------------------------------------------------------------------------------
+5.1  GENERAL USE CASE DIAGRAM — FULL SYSTEM
+--------------------------------------------------------------------------------
+
+Actors:
+  [A]  Admin
+  [MM] Marketing Manager
+  [MA] Marketing Agent
+  [PM] Production Manager
+  [PA] Production Agent
+  [CL] Client
+
++============================================================================+
+|                        MarketingERP Platform                               |
+|                                                                            |
+|  AUTHENTICATION                                                            |
+|    (Login)                  [A][MM][MA][PM][PA]                            |
+|    (Logout)                 [A][MM][MA][PM][PA]                            |
+|    (Refresh Token)          [A][MM][MA][PM][PA]                            |
+|                                                                            |
+|  USER MANAGEMENT                                                           |
+|    (Create User)            [A][MM][PM]                                    |
+|    (View Users)             [A][MM][PM]                                    |
+|    (Update User)            [A][MM][PM]                                    |
+|    (Delete User)            [A]                                            |
+|                                                                            |
+|  CLIENT MANAGEMENT                                                         |
+|    (Create Client)          [A][MM]                                        |
+|    (View Clients)           [A][MM]                                        |
+|    (Update Client)          [A][MM]                                        |
+|    (Delete Client)          [A][MM]                                        |
+|                                                                            |
+|  PROJECT MANAGEMENT                                                        |
+|    (Create Project)         [A][MM]                                        |
+|    (View Projects)          [A][MM][MA][PM][PA]                            |
+|    (Update Project)         [A][MM]                                        |
+|    (Delete Project)         [A][MM]                                        |
+|    (Assign Members)         [A][MM]                                        |
+|    (Upload Task Attachments)[A][MM][MA][PM][PA]                            |
+|    (Manage Budget)          [A][MM]                                        |
+|                                                                            |
+|  ANALYTICS & AI                                                           |
+|    (Connect Meta Ads Account)[A]                                          |
+|    (Trigger Meta Ads Sync)  [A][MM]                                        |
+|    (View Synced Analytics)  [A][MM][MA][PM][PA]                            |
+|    (View AI-Generated Insights)[A][MM][MA][PM][PA]                        |
+|                                                                            |
+|  TASK MANAGEMENT                                                           |
+|    (Create Task)            [A][MM][PM]                                    |
+|    (View Tasks)             [A][MM][MA][PM][PA]                            |
+|    (Update Task)            [A][MM][PM]                                    |
+|    (Update Task Status)     [A][MM][MA][PM][PA]                            |
+|    (Delete Task)            [A][MM][PM]                                    |
+|    (Assign Task)            [A][MM][PM]                                    |
+|    (Comment on Task)        [A][MM][MA][PM][PA]                            |
+|    (Submit Task for Client Review) [A][MM][PM]                            |
+|    (Upload/Download Task Attachments) [A][MM][MA][PM][PA]                 |
+|                                                                            |
+|  REPORTS & ANALYTICS                                                       |
+|    (Generate AI Report)     [A][MM]                                        |
+|    (View Reports)           [A][MM]                                        |
+|    (Update Report)          [A][MM]                                        |
+|    (Delete Report)          [A][MM]                                        |
+|    (Send Report to Client)  [A][MM]                                        |
+|    (View Dashboard KPIs)    [A][MM][MA][PM][PA]                            |
+|                                                                            |
+|  CALENDAR                                                                  |
+|    (View Calendar)          [A][MM][MA][PM][PA]                            |
+|                                                                            |
+|  AI ASSISTANT                                                              |
+|    (Chat with AI)           [A][MM][MA][PM][PA]                            |
+|                                                                            |
+|  ADMINISTRATION                                                            |
+|    (View Audit Log)         [A]                                            |
+|    (View Notifications)     [A][MM][MA][PM][PA]                            |
+|    (Mark Notifications Read)[A][MM][MA][PM][PA]                            |
+|                                                                            |
+|  CLIENT PORTAL                                                             |
+|    (Client Login)           [CL]                                           |
+|    (View Own Projects)      [CL]                                           |
+|    (Review Task Pending Approval) [CL]                                     |
+|    (Approve Task)           [CL]                                           |
+|    (Reject Task With Comment)[CL]                                          |
+|    (View Shared Reports)    [CL]                                           |
+|                                                                            |
++============================================================================+
+
+--------------------------------------------------------------------------------
+5.2  SYSTEM ARCHITECTURE DIAGRAM
+--------------------------------------------------------------------------------
+
+  Browser (Staff)                  Browser (Client)
+       |                                  |
+       |  HTTPS + WSS                     |  HTTPS
+       v                                  v
+  +---------------------------------------------------+
+  |            Next.js 16 Frontend (apps/web)         |
+  |  /dashboard/**  (Internal, Auth-gated)            |
+  |  /portal/**     (Client Portal)                   |
+  |  /login         (Staff Login)                     |
+  +----------------------------+----------------------+
+                               | REST / WS
+                               v
+  +---------------------------------------------------+
+  |           NestJS 11 API (apps/api)                |
+  |                                                   |
+  |  AuthModule         UsersModule                   |
+  |  ClientsModule      ProjectsModule                |
+  |  TasksModule        ReportsModule                 |
+  |  BudgetModule       NotificationsModule           |
+  |  AuditLogModule     ChatbotModule                 |
+  |  PortalModule       MetaAdsModule                 |
+  |  FilesModule        EmailModule                   |
+  |  AiInsightsModule   WebSocketGateway               |
+  +------+------------------+------------------------+
+         |                  |
+  +------+------+    +------+------+
+  | PostgreSQL  |    |  Redis 7    |
+  |  (Prisma)   |    | BullMQ      |
+  +-------------+    +------+------+
+                            |
+                     +------+------+
+                     | Anthropic   |
+                     | Claude API  |
+                     +-------------+
+
+--------------------------------------------------------------------------------
+5.3  CLASS DIAGRAM — CORE DOMAIN
+--------------------------------------------------------------------------------
+
++------------------+         +------------------+         +------------------+
+|      users       |         |     projects     |         |      clients     |
++------------------+         +------------------+         +------------------+
+| id: uuid         |         | id: uuid         |         | id: uuid         |
+| email: string    |         | name: string     |         | name: string     |
+| fullName: string |         | objective: ProjObj|        | contactEmail:str |
+| role: UserRole   |1      * | status: ProjStat |*      1 | phone: string    |
+| department: str  +-------->| startDate: Date  |<--------+ industry: string |
+| isActive: bool   |         | endDate: Date    |         | address: string  |
+| createdAt: Date  |         | budgetTotal: Dec |         | createdAt: Date  |
++------------------+         | currency: string |         | updatedAt: Date  |
+| findById()       |         | metaAdsAccountId? |        +------------------+
+| create()         |         | clientId: string |         | create()         |
+| update()         |         | createdById: str |         | update()         |
+| softDelete()     |         | createdAt: Date  |         | delete()         |
++--------+---------+         | updatedAt: Date  |         | getProjects()    |
+         |                   +------------------+         +------------------+
+         |                   | create()         |
+         | *                 | update()         |
++--------+---------+         | delete()         |
+|  project_users   |         | getMembers()     |
++------------------+         | getTasks()       |
+| projectId: str   |         +--------+---------+
+| userId: string   |                  |
+| createdAt: Date  |                  | 1
++------------------+                  |
+                                       | *
+                             +--------+---------+
+                             |      tasks       |
++------------------+         +------------------+
+|     reports      |         | id: uuid         |
++------------------+         | title: string    |
+| id: uuid         |         | description: str |
+| projectId: str   |         | status: TaskStat |
+| periodStart: Date|*      1 | priority: TaskPri |
+| periodEnd: Date  +-------->| projectId: string|
+| status: RptStatus|         | createdById: str  |
+| executiveSummary |         | dueDate: Date     |
+| insights: JSON   |         | clientApproval: ClientApprovalStatus |
+| recommendations  |         | clientRejectionComment: str?         |
+| isShared: bool    |         | revisionCount: int                  |
+| createdAt: Date  |         | createdAt: Date  |
++------------------+         +------------------+
+| generate()  (async,| | create()         |
+|  BullMQ + Claude)  | | updateStatus()   |
+| share()           | | submitForReview() |
++------------------+         | delete()         |
+                              +------------------+
+                                       | 1
+                                       | *
+                             +--------+---------+
+                             | task_assignees   |
+                             +------------------+
+                             | taskId: string   |
+                             | userId: string   |
+                             +------------------+
+
++------------------+         +------------------+         +------------------+
+|  budget_entries  |         |  notifications   |         | task_attachments |
++------------------+         +------------------+         +------------------+
+| id: uuid         |         | id: uuid         |         | id: uuid         |
+| projectId: str   |         | userId: string   |         | taskId: string   |
+| amount: Decimal  |         | type: NotifType  |         | s3Key: string    |
+| category: string |         | message: string  |         | fileName: string |
+| description: str?|         | link: string?    |         | mimeType: string |
+| entryDate: Date  |         | isRead: bool     |         | sizeBytes: int    |
+| createdById: str |         | createdAt: Date  |         | uploadedById: str |
+| createdAt: Date  |         +------------------+         | createdAt: Date  |
++------------------+         | create()         |         +------------------+
+| create()         |         | markRead()       |         | create()         |
+| delete()         |         | markAllRead()    |         | getPresignedUrl() |
++------------------+         +------------------+         | delete()         |
+                                                            +------------------+
+
++------------------+         +------------------+         +------------------+
+|    audit_log     |         | analytics_records|         |    sync_jobs     |
++------------------+         +------------------+         +------------------+
+| id: uuid         |         | id: uuid         |         | id: uuid         |
+| userId: string?  |         | projectId: str   |         | projectId: str   |
+| action: string   |         | date: Date       |         | status: SyncStatus|
+| entity: string   |         | impressions: int |         | startedAt: Date  |
+| entityId: string |         | clicks: int       |         | finishedAt: Date?|
+| ipAddress: string|         | spend: Decimal    |         | errorMessage: str?|
+| meta: JSON        |         | reach/conv/etc.   |         +------------------+
+| createdAt: Date  |         +------------------+         | enqueue()         |
++------------------+         | upsertFromMeta()  |         | run()             |
+| log()            |         +------------------+         +------------------+
+| findAll()        |
++------------------+         +------------------+
+                              |   ai_insights    |
+                              +------------------+
+                              | id: uuid         |
+                              | projectId: str   |
+                              | summary: string  |
+                              | insights: JSON   |
+                              | recommendations  |
+                              | createdAt: Date  |
+                              +------------------+
+                              | generate() (Claude)|
+                              +------------------+
+
+Enumerations (verified against apps/api/prisma/schema.prisma):
+  UserRole         : admin | marketing_manager | marketing_agent
+                      production_manager | production_agent
+  ProjectStatus    : draft | active | paused | completed | archived
+  ProjectObjective : awareness | engagement | traffic | leads | sales | conversions
+  TaskStatus       : todo | in_progress | review | revision | approved | done
+  TaskPriority     : low | medium | high | urgent
+  ClientApprovalStatus : none | pending | client_approved | client_rejected
+  NotificationType : task_assigned | task_status | report_ready | client_review
+  ReportStatus     : generating | ready | failed
+  SyncJobStatus    : running | succeeded | failed
+
+Note: there is no separate "Deliverable" entity. Client review/approval is a
+workflow on tasks directly (client_approval field + submit-for-review action),
+not a distinct resource. There is also no persisted chat/conversation table —
+the AI chatbot is stateless (see ChatbotModule, section 5.5).
+
+--------------------------------------------------------------------------------
+5.4  ENTITY-RELATIONSHIP DIAGRAM
+--------------------------------------------------------------------------------
+
+  users
+  -----
+  id (PK), email (UQ), password_hash, full_name, role, department,
+  is_active, created_at, updated_at
+
+  clients
+  -------
+  id (PK), name, contact_email (UQ), phone, industry, address,
+  portal_password_hash, portal_token, created_at, updated_at
+
+  projects
+  --------
+  id (PK), name, objective, status, start_date, end_date, budget_total,
+  currency, meta_ads_account_id, client_id (FK->clients),
+  created_by_id (FK->users), created_at, updated_at
+
+  project_users
+  -------------
+  project_id (FK->projects), user_id (FK->users), created_at
+  (composite unique key on [project_id, user_id] — no separate role column)
+
+  tasks
+  -----
+  id (PK), title, description, status, priority, project_id (FK->projects),
+  created_by_id (FK->users), due_date, revision_count,
+  client_approval (none|pending|client_approved|client_rejected),
+  client_rejection_comment, client_reviewed_by (FK->client_users),
+  client_reviewed_at, created_at, updated_at
+
+  task_assignees
+  --------------
+  task_id (FK->tasks), user_id (FK->users)
+  (many-to-many — a task can have multiple assignees, not a single FK)
+
+  task_comments
+  -------------
+  id (PK), task_id (FK->tasks), user_id (FK->users),
+  content, created_at
+
+  task_attachments
+  ----------------
+  id (PK), task_id (FK->tasks), s3_key, file_name, mime_type,
+  size_bytes, uploaded_by_id (FK->users), created_at
+
+  reports
+  -------
+  id (PK), project_id (FK->projects), period_start, period_end,
+  status (generating|ready|failed), executive_summary, insights (JSON),
+  recommendations (JSON), is_shared, created_at, updated_at
+
+  budget_entries
+  --------------
+  id (PK), project_id (FK->projects), amount, category, description,
+  entry_date, created_by_id (FK->users), created_at
+
+  notifications
+  -------------
+  id (PK), user_id (FK->users), type, message, link,
+  is_read, created_at
+
+  audit_log
+  ---------
+  id (PK), user_id (FK->users, nullable), action, entity, entity_id,
+  ip_address, meta (JSON), created_at
+
+  analytics_records
+  ------------------
+  id (PK), project_id (FK->projects), date, impressions, clicks, spend,
+  reach, conversions, ctr, cpc, roas (synced from Meta Graph API)
+
+  sync_jobs
+  ---------
+  id (PK), project_id (FK->projects), status (running|succeeded|failed),
+  started_at, finished_at, error_message
+
+  ai_insights
+  -----------
+  id (PK), project_id (FK->projects), summary, insights (JSON),
+  recommendations (JSON), created_at
+
+  Note: no "deliverables" table and no "chat_messages" table exist in the
+  schema. Client review/approval lives directly on tasks (client_approval
+  field). The AI chatbot does not persist conversation history server-side.
+
+  Relationships:
+    clients        ||--o{ projects        (one client, many projects)
+    users          ||--o{ projects        (created_by)
+    projects       ||--o{ project_users   (many members)
+    users          ||--o{ project_users   (member of many projects)
+    projects       ||--o{ tasks
+    tasks          ||--o{ task_assignees  (many-to-many with users)
+    tasks          ||--o{ task_comments
+    tasks          ||--o{ task_attachments
+    client_users   ||--o{ tasks           (client_reviewed_by)
+    projects       ||--o{ reports
+    projects       ||--o{ budget_entries
+    projects       ||--o{ analytics_records
+    projects       ||--o{ sync_jobs
+    projects       ||--o{ ai_insights
+    users          ||--o{ notifications
+    users          ||--o{ audit_log
+
+--------------------------------------------------------------------------------
+5.5  COMPONENT DIAGRAM
+--------------------------------------------------------------------------------
+
+  +===========================================================================+
+  |                         apps/api  (NestJS)                               |
+  |                                                                           |
+  |  +-----------------+  +-----------------+  +-----------------+           |
+  |  |  AuthModule     |  |  UsersModule    |  |  ClientsModule  |           |
+  |  | AuthService     |  | UsersService    |  | ClientsService  |           |
+  |  | AuthController  |  | UsersController |  | ClientsController|          |
+  |  | JwtStrategy     |  | UsersDTO        |  | ClientsDTO      |           |
+  |  +-----------------+  +-----------------+  +-----------------+           |
+  |                                                                           |
+  |  +-----------------+  +-----------------+  +-----------------+           |
+  |  |  ProjectsModule |  |  TasksModule    |  |  ReportsModule  |           |
+  |  | ProjectsService |  | TasksService    |  | ReportsService  |           |
+  |  | ProjectsCtrl    |  | TasksController |  | ReportsController|          |
+  |  | BudgetModule    |  | TasksDTO        |  | ReportsDTO      |           |
+  |  +-----------------+  +-----------------+  +-+---------------+           |
+  |                                              |                            |
+  |  +-----------------+  +-----------------+   | BullMQ Queue               |
+  |  | Notifications   |  |  AuditLog       |   v                            |
+  |  | Module          |  |  Module         |  +-----------------+           |
+  |  | WsGateway       |  | AuditLogService |  | ReportWorker    |           |
+  |  +-----------------+  +-----------------+  | AiInsightsProc. |           |
+  |                                            +--------+--------+           |
+  |  +-----------------+  +-----------------+           |                    |
+  |  | ChatbotModule   |  |  PortalModule   |           | Anthropic API      |
+  |  | ChatbotService  |  | PortalService   |           v                    |
+  |  | ChatbotCtrl     |  | PortalController|  +-----------------+           |
+  |  | (stateless,     |  +-----------------+  | Claude Sonnet 4.6|          |
+  |  |  no DB persist) |                       +-----------------+           |
+  |  +-----------------+                                                     |
+  |                                                                          |
+  |  +-----------------+  +-----------------+  +-----------------+          |
+  |  | MetaAdsModule   |  |  FilesModule    |  |  EmailModule    |          |
+  |  | OAuth + Sync    |  | AWS S3 presign  |  | Resend client   |          |
+  |  | (cron + BullMQ) |  | upload/download |  |                 |          |
+  |  +-----------------+  +-----------------+  +-----------------+          |
+  |                                                                           |
+  |  +-----------------------------------------------+          |           |
+  |  |        PrismaModule (shared)                  |           |           |
+  |  |        ResponseInterceptor (global)           |           |           |
+  |  |        JwtAuthGuard (global)                  |           |           |
+  |  |        RolesGuard (global)                    |           |           |
+  |  +-----------------------------------------------+           |           |
+  +===========================================================================+
+
+--------------------------------------------------------------------------------
+5.6  DEPLOYMENT DIAGRAM
+--------------------------------------------------------------------------------
+
+  +================================+     +================================+
+  |       Production Server        |     |       Client Browser           |
+  |   (Node.js + pm2 cluster)      |     |                                |
+  |                                |     |  Next.js SPA (hydrated)        |
+  |  +--------------------------+  |     |  Zustand store (state)         |
+  |  |  NestJS API (apps/api)  |<------->|  Socket.io client              |
+  |  |  Port 3001              |  |HTTPS|  JWT in httpOnly cookie         |
+  |  +-----------+-------------+  | +WS |                                |
+  |              |                |     +================================+
+  |  +-----------+-------------+  |
+  |  |  Next.js (apps/web)     |  |
+  |  |  Port 3000              |  |
+  |  +-------------------------+  |
+  |                                |
+  |  +--------------------------+  |     +================================+
+  |  |  PostgreSQL 16           |  |     |     Anthropic Cloud API        |
+  |  |  (primary DB)            |  |     |     (claude-sonnet-4-6)        |
+  |  +--------------------------+  |     +================================+
+  |                                |
+  |  +--------------------------+  |
+  |  |  Redis 7                 |  |
+  |  |  (cache + BullMQ)        |  |
+  |  +--------------------------+  |
+  +================================+
+
+--------------------------------------------------------------------------------
+5.7  GENERAL SEQUENCE DIAGRAM — SYSTEM OVERVIEW (Authenticated Request)
+--------------------------------------------------------------------------------
+
+  [Browser]     [Next.js]    [NestJS API]  [JwtAuthGuard] [RolesGuard] [Service] [Prisma/DB]
+      |              |              |              |              |           |          |
+      |-- Navigate ->|              |              |              |           |          |
+      |              |-- REST req ->|              |              |           |          |
+      |              |              |-- verify JWT->|              |           |          |
+      |              |              |              |-- valid ----->|           |          |
+      |              |              |              |              |-- check -->|          |
+      |              |              |              |              |   role     |          |
+      |              |              |              |              |-- allowed->|          |
+      |              |              |              |              |           |-- query ->|
+      |              |              |              |              |           |<- result -|
+      |              |              |<--------------------------response------|          |
+      |              |              |-- audit log (async) -------------------------------->
+      |              |<- JSON ------|              |              |           |          |
+      |<- render ----|              |              |              |           |          |
+
+================================================================================
+6. SPRINT USE CASE DIAGRAMS
+================================================================================
+
+--------------------------------------------------------------------------------
+6.1  SPRINT 1 USE CASE — FOUNDATION & AUTHENTICATION
+--------------------------------------------------------------------------------
+
+Actors: Admin [A], All Staff [S] (all 5 roles)
+
++===========================================================================+
+|                        Sprint 1 — Authentication System                   |
+|                                                                           |
+|  [S]  ------> (Login with email/password)                                |
+|  [S]  ------> (Receive JWT access token + refresh token)                 |
+|  [S]  ------> (Access protected routes)                                  |
+|  [S]  ------> (Refresh expired access token)                             |
+|  [S]  ------> (Logout / invalidate refresh token)                        |
+|  [S]  ------> (View own profile)                                         |
+|                                                                           |
+|  [A]  ------> (Create internal user account)                             |
+|  [A]  ------> (Assign role to user)                                      |
+|  [A]  ------> (Activate / deactivate user)                               |
+|  [A]  ------> (List all users)                                           |
+|  [A]  ------> (Update user details)                                      |
+|  [A]  ------> (Delete user)                                              |
+|                                                                           |
+|  <<include>>  All protected endpoints include: Verify JWT                |
+|  <<include>>  All protected endpoints include: Check Role permissions    |
+|  <<extend>>   Failed auth extends to: Return 401 Unauthorized            |
+|                                                                           |
++===========================================================================+
+
+--------------------------------------------------------------------------------
+6.2  SPRINT 2 USE CASE — CLIENT & PROJECT MANAGEMENT
+--------------------------------------------------------------------------------
+
+Actors: Admin [A], Marketing Manager [MM], All Staff [S]
+
++===========================================================================+
+|                 Sprint 2 — Clients & Projects                             |
+|                                                                           |
+|  CLIENT MANAGEMENT                                                        |
+|  [A][MM] -----> (Create new client profile)                              |
+|  [A][MM] -----> (View client list with search/filter)                    |
+|  [A][MM] -----> (View client detail)                                     |
+|  [A][MM] -----> (Update client information)                              |
+|  [A][MM] -----> (Delete client)                                          |
+|  [A][MM] -----> (Generate client portal access)                          |
+|                                                                           |
+|  PROJECT MANAGEMENT                                                       |
+|  [A][MM] -----> (Create project linked to client)                        |
+|  [A][MM] -----> (Set project budget, start/end dates)                    |
+|  [A][MM] -----> (Assign project members by role)                         |
+|  [A][MM] -----> (Update project status)                                  |
+|  [A][MM] -----> (Delete project)                                         |
+|  [S]     -----> (View accessible projects)                               |
+|  [S]     -----> (View project detail — team tab)                         |
+|  [S]     -----> (View project detail — analytics tab)                    |
+|  [A][MM][PM] -> (Submit task for client review)                          |
+|  [S]     -----> (Upload task attachments)                                |
+|                                                                           |
+|  <<include>> Creating a project includes: Linking to client               |
+|  <<include>> Creating a project includes: Logging to audit               |
+|  <<extend>>  Deleting project extends to: Cascade delete tasks,          |
+|              budget entries, task attachments                             |
+|                                                                           |
++===========================================================================+
+
+--------------------------------------------------------------------------------
+6.3  SPRINT 3 USE CASE — TASK MANAGEMENT & KANBAN
+--------------------------------------------------------------------------------
+
+Actors: Managers [MG] (admin/marketing_manager/production_manager),
+        Agents [AG] (marketing_agent/production_agent)
+
++===========================================================================+
+|                 Sprint 3 — Tasks & Kanban Board                           |
+|                                                                           |
+|  [MG] ------> (Create task within a project)                             |
+|  [MG] ------> (Set task title, description, priority, due date)          |
+|  [MG] ------> (Assign task to a team member)                             |
+|  [MG] ------> (Update task details)                                      |
+|  [MG] ------> (Delete task)                                              |
+|                                                                           |
+|  [MG][AG] --> (View task list with filters: status, priority, assignee)  |
+|  [MG][AG] --> (View task detail)                                         |
+|  [MG][AG] --> (Update task status: todo/in_progress/in_review/done)     |
+|  [MG][AG] --> (Add comment to task)                                      |
+|  [MG][AG] --> (View Kanban board — drag-and-drop columns)                |
+|  [MG][AG] --> (Move task between Kanban columns)                         |
+|  [MG][AG] --> (Filter tasks by project, assignee, priority)              |
+|                                                                           |
+|  <<include>> Assigning a task includes: Sending notification to assignee |
+|  <<include>> Updating status includes: Logging to audit                  |
+|  <<extend>>  Moving to "done" extends to: Notify project manager         |
+|                                                                           |
++===========================================================================+
+
+--------------------------------------------------------------------------------
+6.4  SPRINT 4 USE CASE — REPORTS, BUDGET, CALENDAR & AI
+--------------------------------------------------------------------------------
+
+Actors: Admin [A], Marketing Manager [MM], All Staff [S]
+
++===========================================================================+
+|          Sprint 4 — Reports, Budget, Calendar & AI Assistant              |
+|                                                                           |
+|  REPORTS                                                                  |
+|  [A][MM] -----> (Request AI report generation for a project)             |
+|  [A][MM] -----> (View report generation status)                          |
+|  [A][MM] -----> (View generated report content)                          |
+|  [A][MM] -----> (Edit/update report)                                     |
+|  [A][MM] -----> (Publish report to client portal)                        |
+|  [A][MM] -----> (Delete report)                                          |
+|                                                                           |
+|  BUDGET                                                                   |
+|  [A][MM] -----> (Add budget entry to project)                            |
+|  [A][MM] -----> (View budget entries + category breakdown for project)   |
+|  [A][MM] -----> (Delete budget entry)                                    |
+|  [A][MM] -----> (View budget summary/totals)                             |
+|                                                                           |
+|  CALENDAR                                                                 |
+|  [S]     -----> (View calendar — tasks by due date)                      |
+|  [S]     -----> (Click day to see tasks due that day)                    |
+|                                                                           |
+|  META ADS & AI INSIGHTS                                                  |
+|  [A]     -----> (Connect agency Meta Ads account — OAuth)                |
+|  [A][MM] -----> (Trigger Meta Ads sync for a project)                    |
+|  [S]     -----> (View synced analytics — KPIs, charts, campaign table)   |
+|  [S]     -----> (View AI-generated insights after a sync)                |
+|                                                                           |
+|  AI ASSISTANT (CHATBOT)                                                  |
+|  [S]     -----> (Send message to AI assistant)                          |
+|  [S]     -----> (Receive AI response, workspace-context aware)           |
+|  [S]     -----> (Clear current conversation thread)                     |
+|                                                                           |
+|  <<include>> AI report generation includes: BullMQ background job        |
+|  <<include>> AI report generation includes: Claude API call              |
+|  <<include>> Report publish includes: Notify client (portal)             |
+|  <<include>> Meta Ads sync includes: BullMQ background job               |
+|  <<include>> Meta Ads sync includes: AI insight generation on completion |
+|  <<note>>     Chatbot is stateless — no conversation history is          |
+|               persisted server-side; the client resends full history    |
+|                                                                           |
++===========================================================================+
+
+--------------------------------------------------------------------------------
+6.5  SPRINT 5 USE CASE — NOTIFICATIONS, AUDIT LOG & CLIENT PORTAL
+--------------------------------------------------------------------------------
+
+Actors: Admin [A], All Staff [S], Client [CL]
+
++===========================================================================+
+|       Sprint 5 — Notifications, Audit Log & Client Portal                 |
+|                                                                           |
+|  NOTIFICATIONS                                                            |
+|  [S]  ------> (Receive real-time notification via WebSocket)             |
+|  [S]  ------> (View notification dropdown/list)                          |
+|  [S]  ------> (Mark single notification as read)                         |
+|  [S]  ------> (Mark all notifications as read)                           |
+|  [S]  ------> (Click notification to navigate to relevant resource)      |
+|                                                                           |
+|  AUDIT LOG                                                                |
+|  [A]  ------> (View full audit log — all user actions)                   |
+|  [A]  ------> (Filter audit log by user, action, entity, date)           |
+|  [A]  ------> (Export audit log)                                         |
+|                                                                           |
+|  CLIENT PORTAL                                                            |
+|  [CL] ------> (Login with email + portal password)                       |
+|  [CL] ------> (View own active projects)                                 |
+|  [CL] ------> (View project detail — progress overview)                  |
+|  [CL] ------> (View tasks pending client review)                         |
+|  [CL] ------> (Approve task)                                             |
+|  [CL] ------> (Reject task with required comment)                        |
+|  [CL] ------> (View shared reports)                                      |
+|  [CL] ------> (Logout from portal)                                       |
+|                                                                           |
+|  <<include>> Client approval includes: Notifying managing team           |
+|  <<include>> Client login includes: Separate JWT (portal type)           |
+|  <<extend>>  Rejection extends to: Increment task revision_count,        |
+|              send task back to the agency for rework                    |
+|                                                                           |
++===========================================================================+
+
+================================================================================
+7. CRUD SEQUENCE DIAGRAMS
+================================================================================
+
+Notation:
+  [C]  = Client (Browser / Frontend)
+  [API] = NestJS API Server
+  [GD] = JWT Guard + Roles Guard
+  [SVC] = Service Layer
+  [DB]  = PostgreSQL via Prisma
+  [Q]   = BullMQ / Redis Queue
+  [AI]  = Anthropic Claude API
+  [WS]  = WebSocket Gateway
+  -->  = synchronous call
+  -.-> = asynchronous / event
+
+--------------------------------------------------------------------------------
+7.1  AUTHENTICATION
+--------------------------------------------------------------------------------
+
+7.1.1  LOGIN
+------------------------------------------------------------
+[C]           [API /auth/login]     [AuthService]    [DB]      [Tokens]
+  |                    |                  |            |            |
+  |-- POST /auth/login |                  |            |            |
+  |   { email, pass }  |                  |            |            |
+  |                    |-- validateUser()->|            |            |
+  |                    |                  |-- findByEmail-->        |
+  |                    |                  |<-- user row --|         |
+  |                    |                  |-- bcrypt.compare()      |
+  |                    |                  |-- (match) -->|          |
+  |                    |                  |-- genAccessToken() ---->|
+  |                    |                  |-- genRefreshToken() --->|
+  |                    |                  |-- saveRefreshHash()-->  |
+  |                    |<-- { accessToken, refreshToken, user } ----|
+  |<-- 200 { tokens }  |                  |            |            |
+  |   (set httpOnly     |                  |            |            |
+  |    cookie)          |                  |            |            |
+
+7.1.2  REFRESH TOKEN
+------------------------------------------------------------
+[C]             [API /auth/refresh]    [AuthService]   [DB]
+  |                      |                  |            |
+  |-- POST /auth/refresh  |                  |            |
+  |   Cookie: refresh_tok |                  |            |
+  |                      |-- verify refresh->|            |
+  |                      |                  |-- findUser ->|
+  |                      |                  |<-- user -----|
+  |                      |                  |-- bcrypt compare hash
+  |                      |                  |-- issue new accessToken
+  |                      |<-- { accessToken }|            |
+  |<-- 200 { accessToken }|                  |            |
+
+7.1.3  LOGOUT
+------------------------------------------------------------
+[C]           [API /auth/logout]   [AuthService]   [DB]
+  |                   |                 |            |
+  |-- POST /auth/logout|                 |            |
+  |   (JWT header)    |                 |            |
+  |                   |-- clearRefresh->|            |
+  |                   |                 |-- update user (null hash)-->|
+  |                   |                 |<-- done -------------------|
+  |                   |<-- 200 OK ------|            |
+  |<-- 200 (clear cookie)               |            |
+
+--------------------------------------------------------------------------------
+7.2  USER MANAGEMENT
+--------------------------------------------------------------------------------
+
+7.2.1  CREATE USER
+------------------------------------------------------------
+[C]        [API /users]    [GD]      [UsersService]    [DB]     [Audit]
+  |              |           |              |             |          |
+  |-- POST /users|           |              |             |          |
+  |   { email,   |           |              |             |          |
+  |     fullName,|           |              |             |          |
+  |     role }   |           |              |             |          |
+  |              |-- verifyJWT->            |             |          |
+  |              |           |-- checkRole  |             |          |
+  |              |           |   (admin /   |             |          |
+  |              |           |    manager)  |             |          |
+  |              |           |-- allowed -->|             |          |
+  |              |                          |-- validate DTO         |
+  |              |                          |-- hashPassword()       |
+  |              |                          |-- create() ----------->|
+  |              |                          |<-- new user record ----|
+  |              |                          |-- log(CREATE_USER) --->|
+  |              |<-- 201 { user } ---------|             |          |
+
+7.2.2  READ / LIST USERS
+------------------------------------------------------------
+[C]        [API /users]    [GD]      [UsersService]    [DB]
+  |              |           |              |             |
+  |-- GET /users |           |              |             |
+  |   ?role=&    |           |              |             |
+  |   ?search=   |           |              |             |
+  |              |-- verifyJWT->            |             |
+  |              |           |-- checkRole  |             |
+  |              |           |   (admin /   |             |
+  |              |           |    manager)  |             |
+  |              |           |-- allowed -->|             |
+  |              |                          |-- findMany({ |
+  |              |                          |   where: {   |
+  |              |                          |    role,      |
+  |              |                          |    search     |
+  |              |                          |   }           |
+  |              |                          | }) ---------->|
+  |              |                          |<-- users[] ---|
+  |              |<-- 200 { data: users[] }--|             |
+
+7.2.3  UPDATE USER
+------------------------------------------------------------
+[C]          [API /users/:id]   [GD]   [UsersService]    [DB]     [Audit]
+  |                 |            |            |             |          |
+  |-- PATCH /users/:id           |            |             |          |
+  |   { fullName,  |            |            |             |          |
+  |     isActive } |            |            |             |          |
+  |                 |-- verifyJWT->           |             |          |
+  |                 |            |-- checkRole|             |          |
+  |                 |            |-- allowed->|             |          |
+  |                 |                         |-- findById->|          |
+  |                 |                         |<-- user ----|          |
+  |                 |                         |-- validate DTO         |
+  |                 |                         |-- update() ----------->|
+  |                 |                         |<-- updated user -------|
+  |                 |                         |-- log(UPDATE_USER) --->|
+  |                 |<-- 200 { user } ---------|             |          |
+
+7.2.4  DELETE USER
+------------------------------------------------------------
+[C]          [API /users/:id]   [GD]   [UsersService]    [DB]     [Audit]
+  |                 |            |            |             |          |
+  |-- DELETE /users/:id          |            |             |          |
+  |                 |-- verifyJWT->           |             |          |
+  |                 |            |-- checkRole|             |          |
+  |                 |            |  (admin)   |             |          |
+  |                 |            |-- allowed->|             |          |
+  |                 |                         |-- findById->|          |
+  |                 |                         |<-- user ----|          |
+  |                 |                         |-- softDelete() ------->|
+  |                 |                         |   (isActive = false)   |
+  |                 |                         |<-- done ---------------|
+  |                 |                         |-- log(DELETE_USER) --->|
+  |                 |<-- 200 { message: ok } --|             |          |
+
+--------------------------------------------------------------------------------
+7.3  CLIENT MANAGEMENT
+--------------------------------------------------------------------------------
+
+7.3.1  CREATE CLIENT
+------------------------------------------------------------
+[C]       [API /clients]   [GD]   [ClientsService]    [DB]     [Audit]
+  |              |           |           |              |          |
+  |-- POST /clients           |           |              |          |
+  |   { name,   |           |           |              |          |
+  |     email,  |           |           |              |          |
+  |     phone,  |           |           |              |          |
+  |     industry}|           |           |              |          |
+  |              |-- verifyJWT->         |              |          |
+  |              |           |-- role    |              |          |
+  |              |           |  (admin / |              |          |
+  |              |           |   mm)     |              |          |
+  |              |           |-- ok ---->|              |          |
+  |              |                       |-- validate DTO          |
+  |              |                       |-- genPortalPassword()   |
+  |              |                       |-- hashPortalPass()      |
+  |              |                       |-- create() ------------>|
+  |              |                       |<-- client record -------|
+  |              |                       |-- log(CREATE_CLIENT) -->|
+  |              |<-- 201 { client } ----|              |          |
+
+7.3.2  READ / LIST CLIENTS
+------------------------------------------------------------
+[C]       [API /clients]   [GD]   [ClientsService]    [DB]
+  |              |           |           |              |
+  |-- GET /clients            |           |              |
+  |   ?search=   |           |           |              |
+  |              |-- verifyJWT->         |              |
+  |              |           |-- role ok->              |
+  |              |                       |-- findMany() ->         |
+  |              |                       |<-- clients[] -|         |
+  |              |<-- 200 { data: [] } --|              |
+
+7.3.3  UPDATE CLIENT
+------------------------------------------------------------
+[C]      [API /clients/:id]  [GD]  [ClientsService]   [DB]    [Audit]
+  |               |           |           |             |          |
+  |-- PATCH /clients/:id       |           |             |          |
+  |   { phone,    |           |           |             |          |
+  |     address } |           |           |             |          |
+  |               |-- verifyJWT->         |             |          |
+  |               |           |-- role ok->             |          |
+  |               |                       |-- findById->|          |
+  |               |                       |<-- client --|          |
+  |               |                       |-- update() ----------->|
+  |               |                       |<-- updated client -----|
+  |               |                       |-- log(UPDATE_CLIENT) ->|
+  |               |<-- 200 { client } ----|             |          |
+
+7.3.4  DELETE CLIENT
+------------------------------------------------------------
+[C]      [API /clients/:id]  [GD]  [ClientsService]   [DB]    [Audit]
+  |               |           |           |             |          |
+  |-- DELETE /clients/:id      |           |             |          |
+  |               |-- verifyJWT->         |             |          |
+  |               |           |-- role ok->             |          |
+  |               |                       |-- findById->|          |
+  |               |                       |<-- client --|          |
+  |               |                       |-- delete() ----------->|
+  |               |                       |<-- done ---------------|
+  |               |                       |-- log(DELETE_CLIENT) ->|
+  |               |<-- 200 { message } ---|             |          |
+
+--------------------------------------------------------------------------------
+7.4  PROJECT MANAGEMENT
+--------------------------------------------------------------------------------
+
+7.4.1  CREATE PROJECT
+------------------------------------------------------------
+[C]      [API /projects]   [GD]   [ProjectsService]   [DB]    [Audit]
+  |              |           |           |              |          |
+  |-- POST /projects          |           |              |          |
+  |   { name,   |           |           |              |          |
+  |     clientId,|           |           |              |          |
+  |     budget,  |           |           |              |          |
+  |     dates }  |           |           |              |          |
+  |              |-- verifyJWT->         |              |          |
+  |              |           |-- role    |              |          |
+  |              |           |  (admin/mm)|              |          |
+  |              |           |-- ok ---->|              |          |
+  |              |                       |-- validate   |          |
+  |              |                       |-- verifyClientExists    |
+  |              |                       |-- create() ------------>|
+  |              |                       |<-- project record ------|
+  |              |                       |-- addCreatorAsMember -->|
+  |              |                       |-- log(CREATE_PROJECT) ->|
+  |              |<-- 201 { project } ---|              |          |
+
+7.4.2  READ / LIST PROJECTS
+------------------------------------------------------------
+[C]      [API /projects]   [GD]   [ProjectsService]   [DB]
+  |              |           |           |              |
+  |-- GET /projects           |           |              |
+  |   ?status=   |           |           |              |
+  |   ?clientId= |           |           |              |
+  |              |-- verifyJWT->         |              |
+  |              |           |-- role ok->              |
+  |              |                       |-- scoped query:
+  |              |                       |   admin/mm: all projects
+  |              |                       |   agent: only joined
+  |              |                       |-- findMany() ----------->|
+  |              |                       |<-- projects[] ----------|
+  |              |<-- 200 { data: [] } --|              |
+
+7.4.3  UPDATE PROJECT
+------------------------------------------------------------
+[C]     [API /projects/:id]  [GD]  [ProjectsService]  [DB]    [Audit]
+  |               |           |           |             |          |
+  |-- PATCH /projects/:id      |           |             |          |
+  |   { status,   |           |           |             |          |
+  |     endDate } |           |           |             |          |
+  |               |-- verifyJWT->         |             |          |
+  |               |           |-- role ok->             |          |
+  |               |                       |-- findById->|          |
+  |               |                       |<-- project--|          |
+  |               |                       |-- checkOwnership       |
+  |               |                       |-- update() ----------->|
+  |               |                       |<-- updated project ----|
+  |               |                       |-- log(UPDATE_PROJECT)->|
+  |               |<-- 200 { project } ---|             |          |
+
+7.4.4  DELETE PROJECT
+------------------------------------------------------------
+[C]     [API /projects/:id]  [GD]  [ProjectsService]  [DB]    [Audit]
+  |               |           |           |             |          |
+  |-- DELETE /projects/:id     |           |             |          |
+  |               |-- verifyJWT->         |             |          |
+  |               |           |-- role    |             |          |
+  |               |           |  (admin/mm)|            |          |
+  |               |           |-- ok ---->|             |          |
+  |               |                       |-- findById->|          |
+  |               |                       |<-- project--|          |
+  |               |                       |-- cascade delete:      |
+  |               |                       |   tasks, attachments,  |
+  |               |                       |   budget, reports  --->|
+  |               |                       |<-- done ---------------|
+  |               |                       |-- log(DELETE_PROJECT)->|
+  |               |<-- 200 { message } ---|             |          |
+
+--------------------------------------------------------------------------------
+7.5  TASK MANAGEMENT
+--------------------------------------------------------------------------------
+
+7.5.1  CREATE TASK
+------------------------------------------------------------
+[C]   [API /tasks]  [GD]  [TasksService]  [DB]  [NotifService] [WS] [Audit]
+  |        |          |         |           |          |          |      |
+  |-- POST /tasks      |         |           |          |          |      |
+  |  { title,         |         |           |          |          |      |
+  |    projectId,      |         |           |          |          |      |
+  |    assigneeId,     |         |           |          |          |      |
+  |    priority }      |         |           |          |          |      |
+  |        |-- verifyJWT->       |           |          |          |      |
+  |        |          |-- role   |           |          |          |      |
+  |        |          |  (mgr)   |           |          |          |      |
+  |        |          |-- ok --->|           |          |          |      |
+  |        |                     |-- validate|          |          |      |
+  |        |                     |-- create()----------->          |      |
+  |        |                     |<-- task --|          |          |      |
+  |        |                     |-- createNotif(assignee) ------->|      |
+  |        |                     |                      |-- emit() ------>|
+  |        |                     |                      |          | push  |
+  |        |                     |-- log(CREATE_TASK) ---------------------->
+  |        |<-- 201 { task } ----|           |          |          |      |
+
+7.5.2  READ / LIST TASKS
+------------------------------------------------------------
+[C]      [API /tasks]   [GD]   [TasksService]     [DB]
+  |             |          |         |              |
+  |-- GET /tasks |          |         |              |
+  |  ?projectId= |          |         |              |
+  |  ?status=    |          |         |              |
+  |  ?assigneeId=|          |         |              |
+  |              |-- verifyJWT->      |              |
+  |              |          |-- role  |              |
+  |              |          |   ok -->|              |
+  |              |                    |-- scoped query:
+  |              |                    |   managers: all project tasks
+  |              |                    |   agents: only assigned
+  |              |                    |-- findMany() ----------->|
+  |              |                    |<-- tasks[] -------------|
+  |              |<-- 200 { data:[] }--|              |
+
+7.5.3  UPDATE TASK
+------------------------------------------------------------
+[C]   [API /tasks/:id]  [GD]  [TasksService]  [DB]  [NotifService] [Audit]
+  |          |            |         |           |          |            |
+  |-- PATCH /tasks/:id     |         |           |          |            |
+  |  { status: done }      |         |           |          |            |
+  |          |-- verifyJWT->         |           |          |            |
+  |          |            |-- role   |           |          |            |
+  |          |            |  check   |           |          |            |
+  |          |            |-- ok --->|           |          |            |
+  |          |                       |-- findTask->          |            |
+  |          |                       |<-- task --|          |            |
+  |          |                       |-- update() ---------->|            |
+  |          |                       |<-- updated task ------|            |
+  |          |                       |-- if status changed:  |            |
+  |          |                       |   notify manager ----->|            |
+  |          |                       |-- log(UPDATE_TASK) ---------------->
+  |          |<-- 200 { task } ------|           |          |            |
+
+7.5.4  DELETE TASK
+------------------------------------------------------------
+[C]   [API /tasks/:id]  [GD]  [TasksService]  [DB]    [Audit]
+  |          |            |         |           |          |
+  |-- DELETE /tasks/:id    |         |           |          |
+  |          |-- verifyJWT->         |           |          |
+  |          |            |-- role   |           |          |
+  |          |            |  (mgr)   |           |          |
+  |          |            |-- ok --->|           |          |
+  |          |                       |-- findTask->          |
+  |          |                       |<-- task --|          |
+  |          |                       |-- deleteComments() -->|
+  |          |                       |-- delete() ---------->|
+  |          |                       |<-- done -------------|
+  |          |                       |-- log(DELETE_TASK) -->|
+  |          |<-- 200 { message } ---|           |          |
+
+--------------------------------------------------------------------------------
+7.6  REPORT MANAGEMENT
+--------------------------------------------------------------------------------
+
+7.6.1  GENERATE (CREATE) REPORT
+------------------------------------------------------------
+[C]  [API /api/reports]  [GD]  [ReportsService]  [Q: BullMQ]  [Worker]  [AI]  [DB]
+  |        |           |         |                |            |       |     |
+  |-- POST /api/reports |         |                |            |       |     |
+  |  { projectId,       |         |                |            |       |     |
+  |    periodStart,     |         |                |            |       |     |
+  |    periodEnd }      |         |                |            |       |     |
+  |        |-- verifyJWT->        |                |            |       |     |
+  |        |           |-- role -->               |            |       |     |
+  |        |           |  (admin/mm)               |            |       |     |
+  |        |                      |-- createDraft->|            |       |     |
+  |        |                      |<-- report (pending status)  |       |     |
+  |        |<-- 202 { reportId }--|                |            |       |     |
+  |        |                      |-- enqueueJob()->            |       |     |
+  |        |                      |   (reportId) -->|           |       |     |
+  |        |                      |                 |-- dequeue->       |     |
+  |        |                      |                 |           |-- fetch project data->|
+  |        |                      |                 |           |<-- data ------|
+  |        |                      |                 |           |-- call Claude ->    |
+  |        |                      |                 |           |<-- content ---------|
+  |        |                      |                 |           |-- updateReport() -->|
+  |        |                      |                 |           |   (status: done)    |
+
+7.6.2  READ / LIST REPORTS
+------------------------------------------------------------
+[C]      [API /reports]   [GD]   [ReportsService]    [DB]
+  |              |           |           |              |
+  |-- GET /reports|           |           |              |
+  |  ?projectId= |           |           |              |
+  |              |-- verifyJWT->         |              |
+  |              |           |-- role ok->              |
+  |              |                       |-- findMany()->|
+  |              |                       |<-- reports[]--|
+  |              |<-- 200 { data:[] } ---|              |
+
+7.6.3  SHARE REPORT WITH CLIENT
+------------------------------------------------------------
+(Verified route: PATCH /api/reports/:id/share — there is no generic
+content-edit endpoint; reports are only toggled between private/shared.)
+
+[C]    [API /api/reports/:id/share]  [GD]  [ReportsService]   [DB]    [Audit]
+  |            |             |         |              |          |
+  |-- PATCH /api/reports/:id/share     |              |          |
+  |  { isShared: true }       |         |              |          |
+  |            |-- verifyJWT->          |              |          |
+  |            |             |-- role ->|              |          |
+  |            |                        |-- findById ->|          |
+  |            |                        |<-- report ---|          |
+  |            |                        |-- update() ----------->|
+  |            |                        |<-- updated report -----|
+  |            |                        |-- notifyClient() ----->|
+  |            |                        |-- log(SHARE_REPORT) -->|
+  |            |<-- 200 { report } -----|              |          |
+
+--------------------------------------------------------------------------------
+7.7  BUDGET MANAGEMENT
+--------------------------------------------------------------------------------
+
+(Verified routes — apps/api/src/modules/budget/budget.controller.ts:
+ @Controller('api/projects/:projectId/budget'). There is no update/PATCH
+ endpoint for an existing entry — only create, list, summary, and delete.)
+
+7.7.1  CREATE BUDGET ENTRY
+------------------------------------------------------------
+[C]  [API /api/projects/:id/budget/entries]  [GD]  [BudgetService]  [DB]
+  |               |                |         |            |        |
+  |-- POST /api/projects/:id/budget/entries   |            |        |
+  |  { amount, category,            |         |            |        |
+  |    description, entryDate }     |         |            |        |
+  |               |-- verifyJWT  ->|         |            |        |
+  |               |                          |-- validate  |        |
+  |               |                          |-- create() ->        |
+  |               |                          |<-- entry ---|        |
+  |               |<-- 201 { entry } --------|            |        |
+
+7.7.2  READ BUDGET ENTRIES & SUMMARY
+------------------------------------------------------------
+[C]  [API /api/projects/:id/budget]  [GD]  [BudgetService]  [DB]
+  |               |                |         |            |
+  |-- GET /api/projects/:id/budget/entries    |            |
+  |-- GET /api/projects/:id/budget/summary    |            |
+  |               |-- verifyJWT ->|         |            |
+  |               |                          |-- findMany (projectId)-->|
+  |               |                          |<-- entries[] ----------|
+  |               |                          |-- compute totals/byCategory|
+  |               |<-- 200 { entries } / { budgetTotal, totalSpent, ... }|
+
+7.7.3  DELETE BUDGET ENTRY
+------------------------------------------------------------
+[C]  [API /api/projects/:id/budget/entries/:entryId]  [GD]  [BudgetService]  [DB]
+  |              |             |         |            |        |
+  |-- DELETE /api/projects/:id/budget/entries/:entryId|        |
+  |              |-- verifyJWT->          |            |        |
+  |              |                        |-- findById->        |
+  |              |                        |<-- entry --|        |
+  |              |                        |-- delete() -------->|
+  |              |<-- 200 { message } ----|            |        |
+
+--------------------------------------------------------------------------------
+7.8  NOTIFICATION MANAGEMENT
+--------------------------------------------------------------------------------
+
+7.8.1  CREATE NOTIFICATION (System-Generated)
+------------------------------------------------------------
+[TriggeringService]  [NotificationsService]  [DB]        [WS Gateway]
+        |                     |               |                |
+        |-- createNotif({     |               |                |
+        |   userId,           |               |                |
+        |   type,             |               |                |
+        |   message,          |               |                |
+        |   link }) ---------->               |                |
+        |                     |-- insert() -->|                |
+        |                     |<-- record ----|                |
+        |                     |-- emitToUser('user:{id}') ---->|
+        |                     |              socket event      |-- push to
+        |                     |              'notification'    |   browser
+
+7.8.2  READ NOTIFICATIONS (User Fetches List)
+------------------------------------------------------------
+[C]  [API /notifications]  [GD]  [NotificationsService]  [DB]
+  |           |              |           |                  |
+  |-- GET /notifications      |           |                  |
+  |   ?limit=10 &             |           |                  |
+  |   ?unreadOnly=true        |           |                  |
+  |           |-- verifyJWT ->|           |                  |
+  |           |              |-- ok ----->|                  |
+  |           |                           |-- findMany({     |
+  |           |                           |   userId: me,    |
+  |           |                           |   limit,         |
+  |           |                           |   unreadOnly })  |
+  |           |                           |-- query() ------->
+  |           |                           |<-- notifs[] -----|
+  |           |<-- 200 { items, total } --|                  |
+
+7.8.3  MARK NOTIFICATION READ
+------------------------------------------------------------
+[C]  [API /notifications/:id/read]  [GD]  [NotificationsService]  [DB]
+  |                |                  |           |                  |
+  |-- PATCH /notif/:id/read           |           |                  |
+  |                |-- verifyJWT ----->           |                  |
+  |                |                  |-- ok ----->                  |
+  |                |                              |-- findById() --->|
+  |                |                              |-- verify owner   |
+  |                |                              |-- update(isRead: true)->
+  |                |                              |<-- done ---------|
+  |                |<-- 200 { message } ----------|                  |
+
+(Mark All Read: same flow but updates all unread for userId in one query)
+
+--------------------------------------------------------------------------------
+7.9  AUDIT LOG
+--------------------------------------------------------------------------------
+
+7.9.1  READ AUDIT LOG (Admin Only)
+------------------------------------------------------------
+[C]  [API /audit-log]  [GD]  [AuditLogService]  [DB]
+  |         |            |         |               |
+  |-- GET /audit-log      |         |               |
+  |   ?userId=           |         |               |
+  |   ?action=           |         |               |
+  |   ?entity=           |         |               |
+  |   ?from= &?to=        |         |               |
+  |   ?page= &?limit=     |         |               |
+  |         |-- verifyJWT->         |               |
+  |         |            |-- role   |               |
+  |         |            |  (admin) |               |
+  |         |            |-- ok --->|               |
+  |         |                       |-- findMany({  |
+  |         |                       |   where: {    |
+  |         |                       |    userId,    |
+  |         |                       |    action,    |
+  |         |                       |    entity,    |
+  |         |                       |    dateRange  |
+  |         |                       |   },          |
+  |         |                       |   orderBy:    |
+  |         |                       |    createdAt  |
+  |         |                       |    DESC,      |
+  |         |                       |   take, skip  |
+  |         |                       | }) ---------->|
+  |         |                       |<-- logs[] ----|
+  |         |<-- 200 { items, total, pages }        |
+
+================================================================================
+8. SPRINT PLANNING & TASK BREAKDOWN
+================================================================================
+
+--------------------------------------------------------------------------------
+Sprint 1 — Foundation & Authentication
+Duration: 2 weeks  |  Status: DONE
+--------------------------------------------------------------------------------
+
+  Backend:
+  [DONE] Init NestJS monorepo with npm workspaces
+  [DONE] Configure PostgreSQL + Prisma schema (initial models)
+  [DONE] Implement User model with role enum
+  [DONE] AuthModule: register, login with bcrypt + JWT
+  [DONE] JWT access token (15 min) + refresh token (7 days) strategy
+  [DONE] JwtAuthGuard (global) + RolesGuard + @Roles() decorator
+  [DONE] ResponseInterceptor (wraps all responses in { data })
+  [DONE] UsersModule: CRUD + role-based access
+  [DONE] Seeder script: create default admin user
+  [DONE] AuditLogService: log auth + user actions
+
+  Frontend:
+  [DONE] Init Next.js 16 App Router project
+  [DONE] Login page with form validation
+  [DONE] Zustand auth store (accessToken, user, refresh logic)
+  [DONE] Axios interceptor: auto-attach JWT, auto-refresh on 401
+  [DONE] Protected route middleware (redirect to /login if no token)
+  [DONE] Dashboard shell: Sidebar + Header layout components
+  [DONE] CSS variables system: light/dark theme support
+  [DONE] Users management page (Admin: full CRUD table)
+  [DONE] Theme toggle (light/dark) in header
+
+--------------------------------------------------------------------------------
+Sprint 2 — Client & Project Management
+Duration: 2 weeks  |  Status: DONE
+--------------------------------------------------------------------------------
+
+  Backend:
+  [DONE] ClientsModule: CRUD, portal password generation
+  [DONE] ProjectsModule: CRUD, status/objective enums, date/budget fields
+  [DONE] ProjectUsers: assign/remove team members (many-to-many)
+  [DONE] Task attachments sub-resource: upload/list/download/delete (S3)
+  [DONE] Scope-based queries (agents see only joined projects)
+
+  Frontend:
+  [DONE] Clients page: data table, create/edit modal, delete confirm
+  [DONE] Projects list page: card grid, status badge, filters
+  [DONE] Project detail page: tabbed layout
+  [DONE]   → Overview tab: info, status, dates, budget
+  [DONE]   → Tasks tab: compact task list, link to kanban
+  [DONE]   → Team tab: add/remove members
+
+--------------------------------------------------------------------------------
+Sprint 3 — Task Management & Collaboration
+Duration: 2 weeks  |  Status: DONE
+--------------------------------------------------------------------------------
+
+  Backend:
+  [DONE] TasksModule: CRUD, priority + status enums, assignee FK
+  [DONE] Task status transition validation
+  [DONE] TaskComments sub-resource
+  [DONE] Role-scoped task queries (agents: only assigned tasks)
+  [DONE] Notification trigger on task assign / status change
+
+  Frontend:
+  [DONE] Tasks list page: table with filters (project, status, assignee)
+  [DONE] Task detail: inline status update, comment thread
+  [DONE] Kanban board: columns per status, drag-and-drop
+  [DONE] Calendar page: monthly grid, tasks as events, project colors
+  [DONE] Notification badge in header (unread count)
+  [DONE] Notification dropdown: list, mark read, click to navigate
+
+--------------------------------------------------------------------------------
+Sprint 4 — Analytics, AI & Reporting
+Duration: 2 weeks  |  Status: DONE
+--------------------------------------------------------------------------------
+
+  Backend:
+  [DONE] ReportsModule: CRUD, type enum, publish flag
+  [DONE] BullMQ queue for AI report generation
+  [DONE] ReportWorker: fetch project data, call Anthropic API, save
+  [DONE] ChatbotModule: stateless message endpoint, Claude API call
+  [DONE] Dashboard KPI endpoint: aggregated stats per role
+
+  Frontend:
+  [DONE] Reports page: list, generate button, status polling
+  [DONE] Report detail: full content view, publish toggle
+  [DONE] AI Chat page: message thread (client-side history), clear
+  [DONE] Dashboard page: KPI cards, charts (project status, tasks)
+
+--------------------------------------------------------------------------------
+Sprint 5 — Budget, Client Portal & Real-Time
+Duration: 2 weeks  |  Status: DONE
+--------------------------------------------------------------------------------
+
+  Backend:
+  [DONE] BudgetModule: create/list/summary/delete entries per category
+  [DONE] WebSocket gateway: Socket.io, JWT auth on connect
+  [DONE] Room system: user:{id} rooms for targeted push
+  [DONE] NotificationsModule: CRUD, mark read, unread count
+  [DONE] PortalModule: client auth (separate JWT type), scoped data
+  [DONE] Portal task review endpoints (client approve / reject + comment)
+  [DONE] AuditLogModule: paginated, filterable log endpoint
+
+  Frontend:
+  [DONE] Standalone Budget page (/dashboard/budget): project selector,
+         summary cards, category breakdown, entries table, add entry
+  [DONE] WebSocket client: connect on login, reconnect on token refresh
+  [DONE] Real-time notification push (badge + dropdown update)
+  [DONE] Audit log page: filterable table (admin only)
+  [DONE] Client Portal (/portal):
+  [DONE]   → Login page
+  [DONE]   → Projects list
+  [DONE]   → Project detail: tasks, timeline
+  [DONE]   → Review/approve/reject (with comment) workflow
+  [DONE]   → Reports list + download
+
+================================================================================
+9. PRODUCT BACKLOG
+================================================================================
+
+  Priority  ID    Story                                         Status
+  --------  ----  -------------------------------------------  --------
+  CRITICAL  US-01 Staff can login and receive JWT tokens        DONE
+  CRITICAL  US-02 Admin can manage all users (CRUD + roles)     DONE
+  CRITICAL  US-03 Managers can create and manage clients        DONE
+  CRITICAL  US-04 Managers can create and manage projects       DONE
+  CRITICAL  US-05 Tasks can be created and assigned             DONE
+  CRITICAL  US-06 Task status can be updated by team members    DONE
+  CRITICAL  US-07 Kanban board reflects real-time task state    DONE
+  HIGH      US-08 AI generates performance reports per project  DONE
+  HIGH      US-09 Reports can be published to client portal     DONE
+  HIGH      US-10 Clients can login to dedicated portal         DONE
+  HIGH      US-11 Clients can review and approve/reject tasks   DONE
+  HIGH      US-12 Real-time notifications via WebSocket         DONE
+  HIGH      US-13 Budget entries tracked per project            DONE
+  HIGH      US-14 Calendar shows tasks and milestones           DONE
+  HIGH      US-15 Admin can view full audit log                 DONE
+  MEDIUM    US-16 AI assistant chatbot for staff                DONE
+  MEDIUM    US-17 File uploads per project                      DONE
+  MEDIUM    US-18 Task comments/discussion thread               DONE
+  MEDIUM    US-19 Dashboard KPI cards and charts                DONE
+  MEDIUM    US-20 Theme toggle (light/dark) for staff UI        DONE
+  MEDIUM    US-24 Meta Ads performance data sync                DONE
+  MEDIUM    US-25 Email notification delivery                   DONE
+  LOW       US-21 Payment/invoicing integration                 BACKLOG
+  LOW       US-22 Google Calendar sync                          BACKLOG
+  LOW       US-23 Mobile native app (React Native)              BACKLOG
+
+================================================================================
+10. API REFERENCE SUMMARY
+================================================================================
+
+  Method  Endpoint                                       Roles Allowed
+  ------  ---------------------------------------------  ------------------------------
+  POST    /api/auth/login                                Public
+  POST    /api/auth/refresh                              Public
+  POST    /api/auth/logout                               Any authenticated
+  GET     /api/auth/me                                   Any authenticated
+
+  GET     /api/users                                     Admin, MM, PM
+  POST    /api/users                                     Admin, MM, PM
+  POST    /api/users/accept-invitation                   Public
+  GET     /api/users/:id                                 Admin, MM, PM
+  PATCH   /api/users/:id                                 Admin
+
+  GET     /api/clients                                   Admin, MM, MA
+  POST    /api/clients                                   Admin, MM
+  GET     /api/clients/:id                                Admin, MM, MA
+  PATCH   /api/clients/:id                                Admin, MM
+  POST    /api/clients/:id/users                          Admin
+  GET     /api/clients/:id/users                          Admin
+
+  GET     /api/projects                                   All staff (scoped)
+  POST    /api/projects                                   Admin, MM
+  GET     /api/projects/:id                                All staff (scoped)
+  PATCH   /api/projects/:id                                Admin, MM
+  DELETE  /api/projects/:id                                Admin
+  POST    /api/projects/:id/team                           Admin, MM
+  DELETE  /api/projects/:id/team/:userId                   Admin, MM
+  GET     /api/projects/:id/team                           Admin, MM
+
+  POST    /api/projects/:projectId/budget/entries          Any authenticated
+  GET     /api/projects/:projectId/budget/entries          Any authenticated
+  GET     /api/projects/:projectId/budget/summary          Any authenticated
+  DELETE  /api/projects/:projectId/budget/entries/:id      Owner or Admin
+
+  GET     /api/tasks                                       All staff (scoped)
+  POST    /api/tasks                                       Admin, MM, PM
+  GET     /api/tasks/:id                                    All staff (scoped)
+  PATCH   /api/tasks/:id/status                              All staff (scoped)
+  PATCH   /api/tasks/:id/submit-for-review                   Admin, MM, PM
+  PATCH   /api/tasks/:id                                     Admin, MM, PM
+  DELETE  /api/tasks/:id                                     Admin
+
+  GET     /api/tasks/:taskId/comments                        All staff (scoped)
+  POST    /api/tasks/:taskId/comments                        All staff (scoped)
+  DELETE  /api/tasks/:taskId/comments/:commentId             All staff (scoped)
+
+  POST    /api/tasks/:taskId/attachments                     All staff (scoped)
+  GET     /api/tasks/:taskId/attachments                     All staff (scoped)
+  GET     /api/tasks/:taskId/attachments/:attachmentId/url   All staff (scoped)
+  DELETE  /api/tasks/:taskId/attachments/:attachmentId       All staff (scoped)
+
+  POST    /api/reports                                       Admin, MM
+  GET     /api/reports                                       Admin, MM
+  GET     /api/reports/:id                                   Any authenticated (scoped)
+  PATCH   /api/reports/:id/share                             Admin, MM
+
+  GET     /api/notifications                                 Any authenticated
+  GET     /api/notifications/unread-count                    Any authenticated
+  PATCH   /api/notifications/read-all                        Any authenticated
+  PATCH   /api/notifications/:id/read                        Any authenticated
+
+  GET     /api/audit-log                                     Admin
+  POST    /api/chatbot/message                               All staff
+
+  GET     /api/analytics/overview                            Admin, MM, MA
+  GET     /api/analytics/:projectId/summary                  Admin, MM, MA
+  GET     /api/analytics/:projectId/campaigns                Admin, MM, MA
+  GET     /api/analytics/:projectId/daily                    Admin, MM, MA
+  GET     /api/analytics/:projectId/top-campaigns             Admin, MM
+
+  GET     /api/projects/:projectId/insights                  Admin, MM, MA
+  GET     /api/projects/:projectId/insights/latest            Admin, MM, MA
+
+  GET     /api/meta/connect                                   Admin
+  GET     /api/meta/callback                                  Admin
+  GET     /api/meta/status                                    Admin
+  POST    /api/meta/sync/:projectId                            Admin, MM
+  GET     /api/meta/sync/:projectId/status                     Admin, MM
+  GET     /api/meta/sync/:projectId/history                    Admin, MM
+
+  POST    /api/portal/auth/login                               Public (client)
+  POST    /api/portal/auth/refresh                              Public (client cookie)
+  POST    /api/portal/auth/logout                               Client (portal JWT)
+  GET     /api/portal/projects                                  Client (portal JWT)
+  GET     /api/portal/projects/:id                               Client (portal JWT)
+  GET     /api/portal/projects/:id/reports                       Client (portal JWT)
+  POST    /api/portal/projects/:projectId/tasks/:taskId/review    Client (portal JWT)
+
+  (MM = marketing_manager, MA = marketing_agent, PM = production_manager)
+
+================================================================================
+11. DATABASE SCHEMA SUMMARY
+================================================================================
+
+  Table              Rows (est.)  Key Relations
+  -----------------  -----------  -----------------------------------------
+  users              ~50          Referenced by all tables (created_by, assignee)
+  refresh_tokens     ~50          FK: user_id
+  clients            ~30          One-to-many with projects
+  client_users       ~30          FK: client_id (portal login accounts)
+  client_refresh_tokens ~30       FK: client_user_id
+  projects           ~100         FK: client_id, created_by
+  project_users      ~300         FK: project_id, user_id (many-to-many)
+  tasks              ~500         FK: project_id, created_by, client_reviewed_by
+  task_assignees     ~600         FK: task_id, user_id (many-to-many)
+  task_attachments   ~250         FK: task_id, uploaded_by (S3 object keys)
+  task_comments      ~1000        FK: task_id, user_id
+  reports            ~80          FK: project_id, generated_by
+  budget_entries     ~400         FK: project_id, created_by
+  notifications      ~2000        FK: user_id
+  analytics_records  ~5000        FK: project_id (Meta Ads daily metrics)
+  sync_jobs          ~200         FK: project_id (Meta Ads sync run log)
+  ai_insights        ~150         FK: project_id (AI-generated summaries)
+  system_config      ~10          Singleton-style key/value app config
+  audit_log          ~5000        FK: user_id (append-only, never deleted)
+
+  Note: there is no chat_messages table — the AI chatbot is stateless;
+  the client resends the full message array with each request and no
+  conversation history is persisted server-side.
+
+  All tables include: id (UUID), created_at (timestamp)
+  Most include: updated_at (timestamp)
+  Soft delete where applicable: users (is_active flag)
+
+================================================================================
+12. SECURITY DESIGN
+================================================================================
+
+  Authentication:
+    - Passwords hashed with bcrypt (salt rounds: 12)
+    - Access tokens: JWT HS256, 15-minute TTL
+    - Refresh tokens: JWT HS256, 7-day TTL, hash stored in DB
+    - Refresh tokens rotated on each use (old hash invalidated)
+    - Portal clients use separate JWT (type: 'portal') to prevent
+      cross-portal access
+
+  Authorisation:
+    - JwtAuthGuard applied globally (all routes protected by default)
+    - @Public() decorator allows explicit opt-out (login, refresh)
+    - RolesGuard checks @Roles() decorator on each endpoint
+    - Service-layer scoping: agents only query their own assigned data
+    - Project membership verified before returning project details
+
+  Data Protection:
+    - Passwords and portal password hashes never returned in API responses
+    - Refresh token hashes stored (never the raw token)
+    - .env file gitignored; .env.example contains no real secrets
+    - Prisma prevents raw SQL injection by design
+    - File uploads validated for MIME type and size
+
+  Audit Trail:
+    - Every create, update, delete action logged to audit_log table
+    - Audit logs are append-only (no delete endpoint)
+    - Logs include: user_id, action, entity type, entity ID, metadata JSON
+
+  Transport:
+    - HTTPS enforced in production
+    - WebSocket connections require valid JWT on handshake
+    - CORS configured to allow only trusted origins
+
+================================================================================
+13. CONCLUSION
+================================================================================
+
+The MarketingERP Platform represents a complete, production-ready full-stack
+ERP solution tailored for marketing and creative agencies. Over five two-week
+sprints, the system evolved from a bare authentication skeleton to a fully
+featured platform supporting:
+
+  - Five internal roles with fine-grained, scope-based access control
+  - Full project lifecycle management from client onboarding to delivery
+  - Real-time collaboration via WebSockets and push notifications
+  - AI-powered report generation and an AI chatbot assistant using
+    Anthropic Claude Sonnet 4.6
+  - Automated Meta Ads performance data sync via the Facebook Graph API
+  - Transactional email notifications via Resend
+  - A dedicated client portal with task review/approval workflows
+  - An immutable audit trail for compliance and governance
+  - A clean, accessible UI with light/dark theme support
+
+The architecture — NestJS + Prisma + PostgreSQL + Redis + BullMQ + Next.js —
+provides a scalable foundation. Background job queues decouple AI processing
+and Meta Ads sync from the request cycle. WebSocket rooms enable targeted
+real-time push without broadcasting unnecessary data. The monorepo structure
+keeps shared configuration and types close to both applications while
+keeping build processes independent.
+
+22 of the 25 user stories from the product backlog have been delivered.
+The three remaining items — payment/invoicing integration, external
+calendar sync, and a native mobile app — were explicitly scoped out and
+represent the natural next phase of the product.
+
+================================================================================
+END OF REPORT
+================================================================================
