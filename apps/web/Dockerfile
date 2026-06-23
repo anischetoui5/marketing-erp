@@ -18,14 +18,15 @@ RUN npm run build
 
 # ── Production stage ─────────────────────────────────────────────────────────
 FROM node:22-alpine AS production
-WORKDIR /app/apps/web
+WORKDIR /app
 ENV NODE_ENV=production
 
-COPY package.json package-lock.json /app/
-COPY apps/api/package.json /app/apps/api/
-COPY apps/web/package.json /app/apps/web/
+COPY package.json package-lock.json ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
 RUN npm ci --workspace=apps/web --omit=dev
 
+WORKDIR /app/apps/web
 COPY --from=builder /app/apps/web/.next  ./.next
 COPY --from=builder /app/apps/web/public ./public
 
