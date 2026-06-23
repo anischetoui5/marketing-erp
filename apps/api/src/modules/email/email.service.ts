@@ -16,7 +16,10 @@ export class EmailService {
 
   constructor(private readonly config: ConfigService) {
     const apiKey = config.get<string>('RESEND_API_KEY');
-    this.from = config.get<string>('RESEND_FROM_EMAIL', 'Marketing ERP <noreply@marketingerp.com>');
+    this.from = config.get<string>(
+      'RESEND_FROM_EMAIL',
+      'Marketing ERP <noreply@marketingerp.com>',
+    );
     this.resend = apiKey ? new Resend(apiKey) : null;
 
     if (!apiKey) {
@@ -34,11 +37,20 @@ export class EmailService {
         html: params.html,
       });
     } catch (err) {
-      this.logger.error(`Failed to send email to ${params.to}: ${(err as Error).message}`);
+      const to = Array.isArray(params.to) ? params.to.join(', ') : params.to;
+      this.logger.error(
+        `Failed to send email to ${to}: ${(err as Error).message}`,
+      );
     }
   }
 
-  async sendTaskAssigned(params: { toEmail: string; toName: string; taskTitle: string; projectName: string; taskLink: string }): Promise<void> {
+  async sendTaskAssigned(params: {
+    toEmail: string;
+    toName: string;
+    taskTitle: string;
+    projectName: string;
+    taskLink: string;
+  }): Promise<void> {
     await this.send({
       to: params.toEmail,
       subject: `Task assigned: ${params.taskTitle}`,
@@ -52,7 +64,14 @@ export class EmailService {
     });
   }
 
-  async sendTaskOverdue(params: { toEmail: string; toName: string; taskTitle: string; projectName: string; dueDate: string; taskLink: string }): Promise<void> {
+  async sendTaskOverdue(params: {
+    toEmail: string;
+    toName: string;
+    taskTitle: string;
+    projectName: string;
+    dueDate: string;
+    taskLink: string;
+  }): Promise<void> {
     await this.send({
       to: params.toEmail,
       subject: `Overdue task: ${params.taskTitle}`,
@@ -66,7 +85,12 @@ export class EmailService {
     });
   }
 
-  async sendReportReady(params: { toEmail: string; toName: string; projectName: string; reportLink: string }): Promise<void> {
+  async sendReportReady(params: {
+    toEmail: string;
+    toName: string;
+    projectName: string;
+    reportLink: string;
+  }): Promise<void> {
     await this.send({
       to: params.toEmail,
       subject: `Report ready: ${params.projectName}`,

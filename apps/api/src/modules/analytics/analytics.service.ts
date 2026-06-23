@@ -12,9 +12,18 @@ export function calcKpis(
   spend: number,
   conversions: number,
   conversionValue: number,
-): { ctr: number | null; cpc: number | null; cpa: number | null; roas: number | null; cpm: number | null } {
+): {
+  ctr: number | null;
+  cpc: number | null;
+  cpa: number | null;
+  roas: number | null;
+  cpm: number | null;
+} {
   return {
-    ctr: safeDiv(clicks, impressions) !== null ? (clicks / impressions) * 100 : null,
+    ctr:
+      safeDiv(clicks, impressions) !== null
+        ? (clicks / impressions) * 100
+        : null,
     cpc: safeDiv(spend, clicks),
     cpa: safeDiv(spend, conversions),
     roas: safeDiv(conversionValue, spend),
@@ -49,7 +58,14 @@ export class AnalyticsService {
         conversionValue: acc.conversionValue + r.conversion_value,
         reach: acc.reach + r.reach,
       }),
-      { impressions: 0, clicks: 0, spend: 0, conversions: 0, conversionValue: 0, reach: 0 },
+      {
+        impressions: 0,
+        clicks: 0,
+        spend: 0,
+        conversions: 0,
+        conversionValue: 0,
+        reach: 0,
+      },
     );
 
     const kpis = calcKpis(
@@ -83,9 +99,26 @@ export class AnalyticsService {
     const where = this.buildWhere(projectId, dateFrom, dateTo);
     const records = await this.prisma.analytics_records.findMany({ where });
 
-    const byCampaign = new Map<string, { name: string; impressions: number; clicks: number; spend: number; conversions: number; conversionValue: number }>();
+    const byCampaign = new Map<
+      string,
+      {
+        name: string;
+        impressions: number;
+        clicks: number;
+        spend: number;
+        conversions: number;
+        conversionValue: number;
+      }
+    >();
     for (const r of records) {
-      const cur = byCampaign.get(r.campaign_id) ?? { name: r.campaign_name, impressions: 0, clicks: 0, spend: 0, conversions: 0, conversionValue: 0 };
+      const cur = byCampaign.get(r.campaign_id) ?? {
+        name: r.campaign_name,
+        impressions: 0,
+        clicks: 0,
+        spend: 0,
+        conversions: 0,
+        conversionValue: 0,
+      };
       byCampaign.set(r.campaign_id, {
         name: r.campaign_name,
         impressions: cur.impressions + r.impressions,
@@ -97,7 +130,13 @@ export class AnalyticsService {
     }
 
     const result = Array.from(byCampaign.entries()).map(([campaignId, d]) => {
-      const kpis = calcKpis(d.impressions, d.clicks, d.spend, d.conversions, d.conversionValue);
+      const kpis = calcKpis(
+        d.impressions,
+        d.clicks,
+        d.spend,
+        d.conversions,
+        d.conversionValue,
+      );
       return {
         campaignId,
         campaignName: d.name,
@@ -115,17 +154,37 @@ export class AnalyticsService {
     return result.sort((a, b) => b.spend - a.spend);
   }
 
-  async getDaily(projectId: string, dateFrom?: string, dateTo?: string, campaignId?: string) {
+  async getDaily(
+    projectId: string,
+    dateFrom?: string,
+    dateTo?: string,
+    campaignId?: string,
+  ) {
     const where = this.buildWhere(projectId, dateFrom, dateTo, campaignId);
     const records = await this.prisma.analytics_records.findMany({
       where,
       orderBy: { record_date: 'asc' },
     });
 
-    const byDate = new Map<string, { impressions: number; clicks: number; spend: number; conversions: number; conversionValue: number }>();
+    const byDate = new Map<
+      string,
+      {
+        impressions: number;
+        clicks: number;
+        spend: number;
+        conversions: number;
+        conversionValue: number;
+      }
+    >();
     for (const r of records) {
       const dateKey = r.record_date.toISOString().split('T')[0];
-      const cur = byDate.get(dateKey) ?? { impressions: 0, clicks: 0, spend: 0, conversions: 0, conversionValue: 0 };
+      const cur = byDate.get(dateKey) ?? {
+        impressions: 0,
+        clicks: 0,
+        spend: 0,
+        conversions: 0,
+        conversionValue: 0,
+      };
       byDate.set(dateKey, {
         impressions: cur.impressions + r.impressions,
         clicks: cur.clicks + r.clicks,
@@ -136,7 +195,13 @@ export class AnalyticsService {
     }
 
     return Array.from(byDate.entries()).map(([date, d]) => {
-      const kpis = calcKpis(d.impressions, d.clicks, d.spend, d.conversions, d.conversionValue);
+      const kpis = calcKpis(
+        d.impressions,
+        d.clicks,
+        d.spend,
+        d.conversions,
+        d.conversionValue,
+      );
       return {
         date,
         impressions: d.impressions,
@@ -157,10 +222,23 @@ export class AnalyticsService {
       orderBy: { record_date: 'asc' },
     });
 
-    const byDate = new Map<string, { impressions: number; clicks: number; spend: number; conversions: number }>();
+    const byDate = new Map<
+      string,
+      {
+        impressions: number;
+        clicks: number;
+        spend: number;
+        conversions: number;
+      }
+    >();
     for (const r of records) {
       const dateKey = r.record_date.toISOString().split('T')[0];
-      const cur = byDate.get(dateKey) ?? { impressions: 0, clicks: 0, spend: 0, conversions: 0 };
+      const cur = byDate.get(dateKey) ?? {
+        impressions: 0,
+        clicks: 0,
+        spend: 0,
+        conversions: 0,
+      };
       byDate.set(dateKey, {
         impressions: cur.impressions + r.impressions,
         clicks: cur.clicks + r.clicks,
@@ -182,7 +260,9 @@ export class AnalyticsService {
     const campaigns = await this.getCampaigns(projectId);
     const withRoas = campaigns.filter((c) => c.roas !== null);
     return {
-      byRoas: [...withRoas].sort((a, b) => (b.roas ?? 0) - (a.roas ?? 0)).slice(0, 5),
+      byRoas: [...withRoas]
+        .sort((a, b) => (b.roas ?? 0) - (a.roas ?? 0))
+        .slice(0, 5),
       bySpend: [...campaigns].sort((a, b) => b.spend - a.spend).slice(0, 5),
     };
   }
@@ -206,9 +286,17 @@ export class AnalyticsService {
 
   private emptySummary(projectId: string, dateFrom?: string, dateTo?: string) {
     return {
-      totalImpressions: 0, totalClicks: 0, totalSpend: 0, totalConversions: 0,
-      totalConversionValue: 0, totalReach: 0,
-      avgCtr: null, avgCpc: null, avgCpa: null, avgRoas: null, avgCpm: null,
+      totalImpressions: 0,
+      totalClicks: 0,
+      totalSpend: 0,
+      totalConversions: 0,
+      totalConversionValue: 0,
+      totalReach: 0,
+      avgCtr: null,
+      avgCpc: null,
+      avgCpa: null,
+      avgRoas: null,
+      avgCpm: null,
       campaignCount: 0,
       dateRange: { from: dateFrom ?? null, to: dateTo ?? null },
     };

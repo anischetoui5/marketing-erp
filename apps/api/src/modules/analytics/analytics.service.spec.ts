@@ -3,11 +3,11 @@ import { calcKpis } from './analytics.service';
 describe('calcKpis', () => {
   it('calculates all KPIs with valid data', () => {
     const result = calcKpis(10000, 500, 250, 25, 1000);
-    expect(result.ctr).toBeCloseTo(5);      // 500/10000 * 100
-    expect(result.cpc).toBeCloseTo(0.5);    // 250/500
-    expect(result.cpa).toBeCloseTo(10);     // 250/25
-    expect(result.roas).toBeCloseTo(4);     // 1000/250
-    expect(result.cpm).toBeCloseTo(25);     // 250/10000 * 1000
+    expect(result.ctr).toBeCloseTo(5); // 500/10000 * 100
+    expect(result.cpc).toBeCloseTo(0.5); // 250/500
+    expect(result.cpa).toBeCloseTo(10); // 250/25
+    expect(result.roas).toBeCloseTo(4); // 1000/250
+    expect(result.cpm).toBeCloseTo(25); // 250/10000 * 1000
   });
 
   it('returns null ctr when impressions is zero', () => {

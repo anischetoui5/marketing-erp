@@ -1,11 +1,28 @@
 import {
-  Controller, Get, Post, Patch, Delete,
-  Body, Param, Query, UseGuards, HttpCode, HttpStatus,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
-import { UpdateProjectDto, UpdateProjectTeamDto } from './dto/update-project.dto';
+import {
+  UpdateProjectDto,
+  UpdateProjectTeamDto,
+} from './dto/update-project.dto';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import type { JwtPayload } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -28,7 +45,13 @@ export class ProjectsController {
   }
 
   @Get()
-  @Roles('admin', 'marketing_manager', 'marketing_agent', 'production_manager', 'production_agent')
+  @Roles(
+    'admin',
+    'marketing_manager',
+    'marketing_agent',
+    'production_manager',
+    'production_agent',
+  )
   @ApiOperation({ summary: 'List projects (scoped by role)' })
   @ApiQuery({ name: 'clientId', required: false })
   @ApiQuery({ name: 'status', required: false })
@@ -51,7 +74,13 @@ export class ProjectsController {
   }
 
   @Get(':id')
-  @Roles('admin', 'marketing_manager', 'marketing_agent', 'production_manager', 'production_agent')
+  @Roles(
+    'admin',
+    'marketing_manager',
+    'marketing_agent',
+    'production_manager',
+    'production_agent',
+  )
   @ApiOperation({ summary: 'Get project by ID' })
   async findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     const result = await this.projectsService.findOne(id, user);
@@ -61,7 +90,11 @@ export class ProjectsController {
   @Patch(':id')
   @Roles('admin', 'marketing_manager')
   @ApiOperation({ summary: 'Update project' })
-  async update(@Param('id') id: string, @Body() dto: UpdateProjectDto, @CurrentUser() user: JwtPayload) {
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProjectDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
     const result = await this.projectsService.update(id, dto, user);
     return { data: result };
   }
@@ -83,7 +116,11 @@ export class ProjectsController {
     @Body() dto: UpdateProjectTeamDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    const result = await this.projectsService.addTeamMembers(id, dto.userIds, user);
+    const result = await this.projectsService.addTeamMembers(
+      id,
+      dto.userIds,
+      user,
+    );
     return { data: result };
   }
 
@@ -96,7 +133,11 @@ export class ProjectsController {
     @Param('userId') userId: string,
     @CurrentUser() user: JwtPayload,
   ) {
-    const result = await this.projectsService.removeTeamMember(id, userId, user);
+    const result = await this.projectsService.removeTeamMember(
+      id,
+      userId,
+      user,
+    );
     return { data: result };
   }
 

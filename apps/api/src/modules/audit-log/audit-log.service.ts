@@ -29,9 +29,9 @@ export class AuditLogService {
           action: params.action,
           entity_type: params.entityType,
           entity_id: params.entityId,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           previous_state: (params.previousState ?? undefined) as any,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           new_state: (params.newState ?? undefined) as any,
           ip_address: params.ipAddress,
         },

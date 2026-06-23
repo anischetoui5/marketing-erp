@@ -1,5 +1,8 @@
 import {
-  Injectable, NotFoundException, ForbiddenException, Logger,
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -14,17 +17,24 @@ export class CommentsService {
   async create(taskId: string, dto: CreateCommentDto, actor: JwtPayload) {
     const task = await this.prisma.tasks.findUnique({
       where: { id: taskId },
-      include: { project: { include: { project_users: { select: { user_id: true } } } } },
+      include: {
+        project: { include: { project_users: { select: { user_id: true } } } },
+      },
     });
     if (!task) throw new NotFoundException('Task not found');
 
-    const isAgent = ['marketing_agent', 'production_agent'].includes(actor.role);
+    const isAgent = ['marketing_agent', 'production_agent'].includes(
+      actor.role,
+    );
     if (isAgent) {
-      const inProject = task.project.project_users.some((pu) => pu.user_id === actor.sub);
+      const inProject = task.project.project_users.some(
+        (pu) => pu.user_id === actor.sub,
+      );
       const isAssignee = await this.prisma.task_assignees.findFirst({
         where: { task_id: taskId, user_id: actor.sub },
       });
-      if (!inProject && !isAssignee) throw new ForbiddenException('Access denied');
+      if (!inProject && !isAssignee)
+        throw new ForbiddenException('Access denied');
     }
 
     const comment = await this.prisma.task_comments.create({
@@ -51,7 +61,9 @@ export class CommentsService {
         orderBy: { created_at: 'asc' },
         skip,
         take: limit,
-        include: { author: { select: { id: true, full_name: true, role: true } } },
+        include: {
+          author: { select: { id: true, full_name: true, role: true } },
+        },
       }),
       this.prisma.task_comments.count({ where: { task_id: taskId } }),
     ]);
@@ -66,11 +78,16 @@ export class CommentsService {
   }
 
   async remove(taskId: string, commentId: string, actor: JwtPayload) {
-    const comment = await this.prisma.task_comments.findUnique({ where: { id: commentId } });
-    if (!comment || comment.task_id !== taskId) throw new NotFoundException('Comment not found');
+    const comment = await this.prisma.task_comments.findUnique({
+      where: { id: commentId },
+    });
+    if (!comment || comment.task_id !== taskId)
+      throw new NotFoundException('Comment not found');
 
     if (actor.role !== 'admin' && comment.author_id !== actor.sub) {
-      throw new ForbiddenException('Only the author or admin can delete this comment');
+      throw new ForbiddenException(
+        'Only the author or admin can delete this comment',
+      );
     }
 
     await this.prisma.task_comments.delete({ where: { id: commentId } });
@@ -78,14 +95,20 @@ export class CommentsService {
   }
 
   private formatComment(c: {
-    id: string; body: string; created_at: Date;
+    id: string;
+    body: string;
+    created_at: Date;
     author: { id: string; full_name: string; role: string };
   }) {
     return {
       id: c.id,
       body: c.body,
       createdAt: c.created_at.toISOString(),
-      author: { id: c.author.id, fullName: c.author.full_name, role: c.author.role },
+      author: {
+        id: c.author.id,
+        fullName: c.author.full_name,
+        role: c.author.role,
+      },
     };
   }
 }

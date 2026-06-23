@@ -46,7 +46,12 @@ export class ClientsController {
   @Get()
   @Roles('admin', 'marketing_manager', 'marketing_agent')
   @ApiOperation({ summary: 'List clients (paginated)' })
-  @ApiQuery({ name: 'archived', required: false, type: Boolean, description: 'Filter archived clients (default false)' })
+  @ApiQuery({
+    name: 'archived',
+    required: false,
+    type: Boolean,
+    description: 'Filter archived clients (default false)',
+  })
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -57,7 +62,12 @@ export class ClientsController {
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number = 20,
   ) {
     const isArchived = archived === 'true';
-    const result = await this.clientsService.findAll(page, limit, isArchived, search);
+    const result = await this.clientsService.findAll(
+      page,
+      limit,
+      isArchived,
+      search,
+    );
     return { data: result };
   }
 
@@ -78,14 +88,22 @@ export class ClientsController {
     @Body() dto: UpdateClientDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    const result = await this.clientsService.update(id, dto, user.sub, user.email);
+    const result = await this.clientsService.update(
+      id,
+      dto,
+      user.sub,
+      user.email,
+    );
     return { data: result };
   }
 
   @Post(':clientId/users')
   @Roles('admin')
   @ApiOperation({ summary: 'Create client portal user (admin only)' })
-  @ApiResponse({ status: 201, description: 'Client user created and invitation queued' })
+  @ApiResponse({
+    status: 201,
+    description: 'Client user created and invitation queued',
+  })
   async createClientUser(
     @Param('clientId') clientId: string,
     @Body() dto: CreateClientUserDto,

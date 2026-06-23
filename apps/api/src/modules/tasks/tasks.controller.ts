@@ -1,8 +1,22 @@
 import {
-  Controller, Get, Post, Patch, Delete,
-  Body, Param, Query, UseGuards, HttpCode, HttpStatus,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -13,7 +27,13 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
-const ALL_ROLES = ['admin', 'marketing_manager', 'marketing_agent', 'production_manager', 'production_agent'] as const;
+const ALL_ROLES = [
+  'admin',
+  'marketing_manager',
+  'marketing_agent',
+  'production_manager',
+  'production_agent',
+] as const;
 
 @ApiTags('tasks')
 @ApiBearerAuth()
@@ -51,7 +71,11 @@ export class TasksController {
     @Query('limit') limit?: string,
   ) {
     const result = await this.tasksService.findAll(user, {
-      projectId, status, priority, department, assigneeId,
+      projectId,
+      status,
+      priority,
+      department,
+      assigneeId,
       page: page ? parseInt(page) : undefined,
       limit: limit ? parseInt(limit) : undefined,
     });
@@ -83,7 +107,10 @@ export class TasksController {
   @Roles('admin', 'marketing_manager', 'production_manager')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Submit task for client review' })
-  async submitForReview(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+  async submitForReview(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
     const result = await this.tasksService.submitForReview(id, user);
     return { data: result };
   }

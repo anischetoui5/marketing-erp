@@ -1,7 +1,19 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNumber, IsDateString, IsOptional, IsIn, IsPositive } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsDateString,
+  IsOptional,
+  IsIn,
+  IsPositive,
+} from 'class-validator';
 
-export const BUDGET_CATEGORIES = ['ad_spend', 'production', 'design', 'other'] as const;
+export const BUDGET_CATEGORIES = [
+  'ad_spend',
+  'production',
+  'design',
+  'other',
+] as const;
 export type BudgetCategory = (typeof BUDGET_CATEGORIES)[number];
 
 export class CreateBudgetEntryDto {

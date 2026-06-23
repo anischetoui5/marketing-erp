@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Param, Body, UseGuards, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  UseGuards,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ClientJwtAuthGuard, ClientJwtPayload } from './portal-auth.guard';
@@ -42,9 +51,16 @@ export class PortalProjectsController {
 
   @Get(':id/reports')
   @ApiOperation({ summary: 'Get shared reports for a project' })
-  async findReports(@Param('id') id: string, @CurrentUser() user: ClientJwtPayload) {
+  async findReports(
+    @Param('id') id: string,
+    @CurrentUser() user: ClientJwtPayload,
+  ) {
     const reports = await this.prisma.reports.findMany({
-      where: { project_id: id, shared_with_client: true },
+      where: {
+        project_id: id,
+        shared_with_client: true,
+        project: { client_id: user.clientId },
+      },
       include: { project: { select: { id: true, name: true } } },
       orderBy: { created_at: 'desc' },
     });
@@ -64,7 +80,10 @@ export class PortalProjectsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get project detail with approved/done tasks' })
-  async findOne(@Param('id') id: string, @CurrentUser() user: ClientJwtPayload) {
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: ClientJwtPayload,
+  ) {
     const project = await this.prisma.projects.findFirst({
       where: { id, client_id: user.clientId },
       include: { client: { select: { id: true, company_name: true } } },
@@ -83,7 +102,9 @@ export class PortalProjectsController {
       orderBy: { updated_at: 'desc' },
       include: {
         task_assignees: {
-          include: { user: { select: { id: true, full_name: true, role: true } } },
+          include: {
+            user: { select: { id: true, full_name: true, role: true } },
+          },
         },
       },
     });
@@ -99,7 +120,10 @@ export class PortalProjectsController {
         budgetTotal: project.budget_total ? Number(project.budget_total) : null,
         budgetCurrency: project.budget_currency,
         createdAt: project.created_at.toISOString(),
-        client: { id: project.client.id, companyName: project.client.company_name },
+        client: {
+          id: project.client.id,
+          companyName: project.client.company_name,
+        },
         tasks: tasks.map((t) => ({
           id: t.id,
           title: t.title,
@@ -122,7 +146,9 @@ export class PortalProjectsController {
   }
 
   @Post(':projectId/tasks/:taskId/review')
-  @ApiOperation({ summary: 'Approve or reject a task submitted for client review' })
+  @ApiOperation({
+    summary: 'Approve or reject a task submitted for client review',
+  })
   async reviewTask(
     @Param('projectId') projectId: string,
     @Param('taskId') taskId: string,
@@ -130,7 +156,9 @@ export class PortalProjectsController {
     @CurrentUser() user: ClientJwtPayload,
   ) {
     if (dto.decision === 'client_rejected' && !dto.comment?.trim()) {
-      throw new BadRequestException('A rejection comment is required when rejecting a task');
+      throw new BadRequestException(
+        'A rejection comment is required when rejecting a task',
+      );
     }
 
     const task = await this.prisma.tasks.findFirst({
@@ -150,7 +178,8 @@ export class PortalProjectsController {
       where: { id: taskId },
       data: {
         client_approval: dto.decision,
-        client_rejection_comment: dto.decision === 'client_rejected' ? dto.comment : null,
+        client_rejection_comment:
+          dto.decision === 'client_rejected' ? dto.comment : null,
         client_reviewed_by: user.sub,
         client_reviewed_at: new Date(),
       },

@@ -1,8 +1,21 @@
 import {
-  Controller, Get, Post, Delete,
-  Body, Param, Query, UseGuards, HttpCode, HttpStatus,
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { JwtAuthGuard } from '../auth/auth.guard';
@@ -11,7 +24,13 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
-const ALL_ROLES = ['admin', 'marketing_manager', 'marketing_agent', 'production_manager', 'production_agent'] as const;
+const ALL_ROLES = [
+  'admin',
+  'marketing_manager',
+  'marketing_agent',
+  'production_manager',
+  'production_agent',
+] as const;
 
 @ApiTags('comments')
 @ApiBearerAuth()

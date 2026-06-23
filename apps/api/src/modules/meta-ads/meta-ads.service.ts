@@ -48,15 +48,19 @@ export class MetaAdsService {
       `&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${appSecret}&code=${code}`;
 
     const res = await fetch(shortUrl);
-    if (!res.ok) throw new BadRequestException('Failed to exchange code for token');
+    if (!res.ok)
+      throw new BadRequestException('Failed to exchange code for token');
     const { access_token } = (await res.json()) as { access_token: string };
 
     const longUrl =
       `https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token` +
       `&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${access_token}`;
     const longRes = await fetch(longUrl);
-    if (!longRes.ok) throw new BadRequestException('Failed to exchange long-lived token');
-    const { access_token: longToken } = (await longRes.json()) as { access_token: string };
+    if (!longRes.ok)
+      throw new BadRequestException('Failed to exchange long-lived token');
+    const { access_token: longToken } = (await longRes.json()) as {
+      access_token: string;
+    };
 
     await this.prisma.system_config.upsert({
       where: { key: 'meta_access_token' },
@@ -69,7 +73,10 @@ export class MetaAdsService {
       create: { key: 'meta_connected_at', value: new Date().toISOString() },
     });
 
-    const frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:3000');
+    const frontendUrl = this.config.get<string>(
+      'FRONTEND_URL',
+      'http://localhost:3000',
+    );
     return `${frontendUrl}/dashboard?meta=connected`;
   }
 
@@ -95,19 +102,31 @@ export class MetaAdsService {
     projectId: string,
     actor: JwtPayload,
   ): Promise<{ message: string; syncJobId: string }> {
-    const project = await this.prisma.projects.findUnique({ where: { id: projectId } });
+    const project = await this.prisma.projects.findUnique({
+      where: { id: projectId },
+    });
     if (!project) throw new NotFoundException('Project not found');
-    if (project.status !== 'active') throw new BadRequestException('Project is not active');
+    if (project.status !== 'active')
+      throw new BadRequestException('Project is not active');
     if (!project.meta_ads_account_id)
-      throw new BadRequestException('Project has no Meta Ads Account ID configured');
+      throw new BadRequestException(
+        'Project has no Meta Ads Account ID configured',
+      );
 
     const running = await this.prisma.sync_jobs.findFirst({
       where: { project_id: projectId, status: 'running' },
     });
-    if (running) throw new BadRequestException('A sync is already running for this project');
+    if (running)
+      throw new BadRequestException(
+        'A sync is already running for this project',
+      );
 
     const syncJob = await this.prisma.sync_jobs.create({
-      data: { project_id: projectId, triggered_by: actor.sub, status: 'running' },
+      data: {
+        project_id: projectId,
+        triggered_by: actor.sub,
+        status: 'running',
+      },
     });
 
     await this.metaSyncQueue.add(

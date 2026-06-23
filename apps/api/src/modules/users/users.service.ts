@@ -35,16 +35,27 @@ export class UsersService {
     private readonly auditLogService: AuditLogService,
   ) {}
 
-  async create(dto: CreateUserDto, actorId: string, actorEmail: string, actorRole: string) {
+  async create(
+    dto: CreateUserDto,
+    actorId: string,
+    actorEmail: string,
+    actorRole: string,
+  ) {
     // Scope: managers can only create their own agent type
     if (actorRole === 'marketing_manager' && dto.role !== 'marketing_agent') {
-      throw new ForbiddenException('Marketing manager can only create marketing agents');
+      throw new ForbiddenException(
+        'Marketing manager can only create marketing agents',
+      );
     }
     if (actorRole === 'production_manager' && dto.role !== 'production_agent') {
-      throw new ForbiddenException('Production manager can only create production agents');
+      throw new ForbiddenException(
+        'Production manager can only create production agents',
+      );
     }
 
-    const existing = await this.prisma.users.findUnique({ where: { email: dto.email } });
+    const existing = await this.prisma.users.findUnique({
+      where: { email: dto.email },
+    });
     if (existing) throw new ConflictException('Email already in use');
 
     const invitationToken = crypto.randomBytes(32).toString('hex');
@@ -86,7 +97,8 @@ export class UsersService {
       },
     });
 
-    if (!user) throw new BadRequestException('Invalid or expired invitation token');
+    if (!user)
+      throw new BadRequestException('Invalid or expired invitation token');
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
@@ -104,9 +116,11 @@ export class UsersService {
 
   async findAll(page: number, limit: number, actorRole: string) {
     const roleFilter =
-      actorRole === 'marketing_manager' ? { role: 'marketing_agent' as const } :
-      actorRole === 'production_manager' ? { role: 'production_agent' as const } :
-      {};
+      actorRole === 'marketing_manager'
+        ? { role: 'marketing_agent' as const }
+        : actorRole === 'production_manager'
+          ? { role: 'production_agent' as const }
+          : {};
 
     const [total, items] = await Promise.all([
       this.prisma.users.count({ where: roleFilter }),
@@ -131,7 +145,12 @@ export class UsersService {
     return user;
   }
 
-  async update(id: string, dto: UpdateUserDto, actorId: string, actorEmail: string) {
+  async update(
+    id: string,
+    dto: UpdateUserDto,
+    actorId: string,
+    actorEmail: string,
+  ) {
     if (dto.isActive === false && id === actorId) {
       throw new ForbiddenException('You cannot deactivate your own account');
     }
@@ -166,7 +185,7 @@ export class UsersService {
       action: 'users.update',
       entityType: 'user',
       entityId: id,
-      previousState: existing as unknown as Record<string, unknown>,
+      previousState: existing,
       newState: dto as unknown as Record<string, unknown>,
     });
 

@@ -33,7 +33,9 @@ describe('AiInsightsService', () => {
           id: 'insight-1',
           summary: 'Strong performance this month.',
           insights: [{ title: 'High CTR', body: 'CTR above average.' }],
-          recommendations: [{ title: 'Increase budget', body: 'Scale top campaigns.' }],
+          recommendations: [
+            { title: 'Increase budget', body: 'Scale top campaigns.' },
+          ],
           generated_at: now,
           prompt_tokens: 1500,
           completion_tokens: 800,

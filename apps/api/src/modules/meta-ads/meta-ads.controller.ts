@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Query, Param, Res, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Query,
+  Param,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
 import { MetaAdsService } from './meta-ads.service';

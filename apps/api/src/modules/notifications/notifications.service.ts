@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  Logger,
+  Optional,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
@@ -42,7 +48,9 @@ export class NotificationsService {
         },
       });
     } catch (err) {
-      this.logger.error(`Failed to send notification: ${(err as Error).message}`);
+      this.logger.error(
+        `Failed to send notification: ${(err as Error).message}`,
+      );
     }
 
     // Real-time push via WebSocket
@@ -64,10 +72,19 @@ export class NotificationsService {
         });
         if (!user) return;
 
-        const frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:3000');
-        const taskLink = params.link ? `${frontendUrl}${params.link}` : frontendUrl;
+        const frontendUrl = this.config.get<string>(
+          'FRONTEND_URL',
+          'http://localhost:3000',
+        );
+        const taskLink = params.link
+          ? `${frontendUrl}${params.link}`
+          : frontendUrl;
 
-        if (params.type === 'task_assigned' && params.emailMeta.taskTitle && params.emailMeta.projectName) {
+        if (
+          params.type === 'task_assigned' &&
+          params.emailMeta.taskTitle &&
+          params.emailMeta.projectName
+        ) {
           await this.emailService.sendTaskAssigned({
             toEmail: user.email,
             toName: user.full_name,
@@ -75,7 +92,10 @@ export class NotificationsService {
             projectName: params.emailMeta.projectName,
             taskLink,
           });
-        } else if (params.type === 'report_ready' && params.emailMeta.projectName) {
+        } else if (
+          params.type === 'report_ready' &&
+          params.emailMeta.projectName
+        ) {
           await this.emailService.sendReportReady({
             toEmail: user.email,
             toName: user.full_name,
@@ -84,7 +104,9 @@ export class NotificationsService {
           });
         }
       } catch (err) {
-        this.logger.error(`Failed to send notification email: ${(err as Error).message}`);
+        this.logger.error(
+          `Failed to send notification email: ${(err as Error).message}`,
+        );
       }
     }
   }
@@ -100,8 +122,14 @@ export class NotificationsService {
 
     const where =
       actorType === 'client'
-        ? { client_user_id: actorId, ...(query.isRead !== undefined ? { is_read: query.isRead } : {}) }
-        : { user_id: actorId, ...(query.isRead !== undefined ? { is_read: query.isRead } : {}) };
+        ? {
+            client_user_id: actorId,
+            ...(query.isRead !== undefined ? { is_read: query.isRead } : {}),
+          }
+        : {
+            user_id: actorId,
+            ...(query.isRead !== undefined ? { is_read: query.isRead } : {}),
+          };
 
     const [items, total] = await Promise.all([
       this.prisma.notifications.findMany({
@@ -130,7 +158,9 @@ export class NotificationsService {
   }
 
   async markRead(id: string, actorId: string, actorType: 'user' | 'client') {
-    const notification = await this.prisma.notifications.findUnique({ where: { id } });
+    const notification = await this.prisma.notifications.findUnique({
+      where: { id },
+    });
     if (!notification) throw new NotFoundException('Notification not found');
 
     const owned =
@@ -138,9 +168,13 @@ export class NotificationsService {
         ? notification.client_user_id === actorId
         : notification.user_id === actorId;
 
-    if (!owned) throw new ForbiddenException('Cannot mark another user\'s notification');
+    if (!owned)
+      throw new ForbiddenException("Cannot mark another user's notification");
 
-    await this.prisma.notifications.update({ where: { id }, data: { is_read: true } });
+    await this.prisma.notifications.update({
+      where: { id },
+      data: { is_read: true },
+    });
     return { message: 'Marked as read' };
   }
 
@@ -150,11 +184,17 @@ export class NotificationsService {
         ? { client_user_id: actorId, is_read: false }
         : { user_id: actorId, is_read: false };
 
-    await this.prisma.notifications.updateMany({ where, data: { is_read: true } });
+    await this.prisma.notifications.updateMany({
+      where,
+      data: { is_read: true },
+    });
     return { message: 'All notifications marked as read' };
   }
 
-  async unreadCount(actorId: string, actorType: 'user' | 'client'): Promise<{ count: number }> {
+  async unreadCount(
+    actorId: string,
+    actorType: 'user' | 'client',
+  ): Promise<{ count: number }> {
     const where =
       actorType === 'client'
         ? { client_user_id: actorId, is_read: false }

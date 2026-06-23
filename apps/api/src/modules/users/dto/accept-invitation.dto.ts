@@ -11,7 +11,8 @@ export class AcceptInvitationDto {
   @IsString()
   @MinLength(10)
   @Matches(/^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/, {
-    message: 'Password must contain at least 1 uppercase letter, 1 number, and 1 special character',
+    message:
+      'Password must contain at least 1 uppercase letter, 1 number, and 1 special character',
   })
   password: string;
 }

@@ -43,11 +43,16 @@ export class SchedulerService {
 
     this.logger.log(`Found ${overdueTasks.length} overdue task(s)`);
 
-    const frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:3000');
+    const frontendUrl = this.config.get<string>(
+      'FRONTEND_URL',
+      'http://localhost:3000',
+    );
 
     for (const task of overdueTasks) {
       const dueDate = task.due_date!.toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
       });
       const taskLink = `${frontendUrl}/dashboard/tasks?taskId=${task.id}`;
 

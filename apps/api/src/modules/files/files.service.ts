@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
@@ -40,13 +45,11 @@ export class FilesService {
     }
   }
 
-  async upload(
-    taskId: string,
-    file: Express.Multer.File,
-    actor: JwtPayload,
-  ) {
+  async upload(taskId: string, file: Express.Multer.File, actor: JwtPayload) {
     if (!this.enabled) {
-      throw new ForbiddenException('File storage is not configured on this server');
+      throw new ForbiddenException(
+        'File storage is not configured on this server',
+      );
     }
 
     const task = await this.prisma.tasks.findUnique({ where: { id: taskId } });
@@ -55,13 +58,15 @@ export class FilesService {
     const ext = file.originalname.split('.').pop() ?? 'bin';
     const key = `attachments/${taskId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    await this.s3.send(new PutObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-      ContentDisposition: `attachment; filename="${file.originalname}"`,
-    }));
+    await this.s3.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+        ContentDisposition: `attachment; filename="${file.originalname}"`,
+      }),
+    );
 
     const attachment = await this.prisma.task_attachments.create({
       data: {
@@ -87,12 +92,16 @@ export class FilesService {
     return attachments.map((a) => this.formatAttachment(a));
   }
 
-  async getDownloadUrl(attachmentId: string, actor: JwtPayload): Promise<{ url: string }> {
+  async getDownloadUrl(attachmentId: string): Promise<{ url: string }> {
     if (!this.enabled) {
-      throw new ForbiddenException('File storage is not configured on this server');
+      throw new ForbiddenException(
+        'File storage is not configured on this server',
+      );
     }
 
-    const attachment = await this.prisma.task_attachments.findUnique({ where: { id: attachmentId } });
+    const attachment = await this.prisma.task_attachments.findUnique({
+      where: { id: attachmentId },
+    });
     if (!attachment) throw new NotFoundException('Attachment not found');
 
     const url = await getSignedUrl(
@@ -109,18 +118,28 @@ export class FilesService {
   }
 
   async remove(attachmentId: string, actor: JwtPayload) {
-    const attachment = await this.prisma.task_attachments.findUnique({ where: { id: attachmentId } });
+    const attachment = await this.prisma.task_attachments.findUnique({
+      where: { id: attachmentId },
+    });
     if (!attachment) throw new NotFoundException('Attachment not found');
 
     const isAdmin = actor.role === 'admin';
     const isUploader = attachment.uploaded_by === actor.sub;
-    if (!isAdmin && !isUploader) throw new ForbiddenException('Cannot delete another user\'s attachment');
+    if (!isAdmin && !isUploader)
+      throw new ForbiddenException("Cannot delete another user's attachment");
 
     if (this.enabled) {
       try {
-        await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: attachment.file_key }));
+        await this.s3.send(
+          new DeleteObjectCommand({
+            Bucket: this.bucket,
+            Key: attachment.file_key,
+          }),
+        );
       } catch (err) {
-        this.logger.error(`S3 delete failed for key ${attachment.file_key}: ${(err as Error).message}`);
+        this.logger.error(
+          `S3 delete failed for key ${attachment.file_key}: ${(err as Error).message}`,
+        );
       }
     }
 
@@ -129,8 +148,13 @@ export class FilesService {
   }
 
   private formatAttachment(a: {
-    id: string; task_id: string; filename: string; file_key: string;
-    file_size: number; mime_type: string; created_at: Date;
+    id: string;
+    task_id: string;
+    filename: string;
+    file_key: string;
+    file_size: number;
+    mime_type: string;
+    created_at: Date;
     uploader?: { id: string; full_name: string } | null;
   }) {
     return {
@@ -140,7 +164,9 @@ export class FilesService {
       fileSize: a.file_size,
       mimeType: a.mime_type,
       createdAt: a.created_at.toISOString(),
-      uploadedBy: a.uploader ? { id: a.uploader.id, fullName: a.uploader.full_name } : null,
+      uploadedBy: a.uploader
+        ? { id: a.uploader.id, fullName: a.uploader.full_name }
+        : null,
     };
   }
 }

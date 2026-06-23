@@ -38,7 +38,9 @@ export class JwtAuthGuard implements CanActivate {
       });
 
       if (payload.type === 'client') {
-        throw new ForbiddenException('Client token cannot be used on internal routes');
+        throw new ForbiddenException(
+          'Client token cannot be used on internal routes',
+        );
       }
 
       request['user'] = payload;

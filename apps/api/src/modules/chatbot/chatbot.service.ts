@@ -19,7 +19,10 @@ export class ChatbotService {
     });
   }
 
-  async chat(dto: SendMessageDto, actor: JwtPayload): Promise<{ reply: string; inputTokens: number; outputTokens: number }> {
+  async chat(
+    dto: SendMessageDto,
+    actor: JwtPayload,
+  ): Promise<{ reply: string; inputTokens: number; outputTokens: number }> {
     const context = await this.buildContext(actor);
     const systemPrompt = this.buildSystemPrompt(actor, context);
 
@@ -47,39 +50,47 @@ export class ChatbotService {
       this.prisma.projects.findMany({
         where: {
           status: { in: ['active', 'draft'] },
-          ...(
-            ['marketing_agent', 'production_agent'].includes(actor.role)
-              ? { project_users: { some: { user_id: actor.sub } } }
-              : {}
-          ),
+          ...(['marketing_agent', 'production_agent'].includes(actor.role)
+            ? { project_users: { some: { user_id: actor.sub } } }
+            : {}),
         },
-        select: { name: true, status: true, client: { select: { company_name: true } }, _count: { select: { tasks: true } } },
+        select: {
+          name: true,
+          status: true,
+          client: { select: { company_name: true } },
+          _count: { select: { tasks: true } },
+        },
         take: 10,
       }),
       this.prisma.tasks.findMany({
         where: {
           due_date: { lt: new Date() },
           status: { notIn: ['approved', 'done'] },
-          ...(
-            ['marketing_agent', 'production_agent'].includes(actor.role)
-              ? { task_assignees: { some: { user_id: actor.sub } } }
-              : {}
-          ),
+          ...(['marketing_agent', 'production_agent'].includes(actor.role)
+            ? { task_assignees: { some: { user_id: actor.sub } } }
+            : {}),
         },
-        select: { title: true, priority: true, due_date: true, project: { select: { name: true } } },
+        select: {
+          title: true,
+          priority: true,
+          due_date: true,
+          project: { select: { name: true } },
+        },
         take: 5,
         orderBy: { due_date: 'asc' },
       }),
       this.prisma.tasks.findMany({
         where: {
           status: 'review',
-          ...(
-            ['marketing_agent', 'production_agent'].includes(actor.role)
-              ? { task_assignees: { some: { user_id: actor.sub } } }
-              : {}
-          ),
+          ...(['marketing_agent', 'production_agent'].includes(actor.role)
+            ? { task_assignees: { some: { user_id: actor.sub } } }
+            : {}),
         },
-        select: { title: true, priority: true, project: { select: { name: true } } },
+        select: {
+          title: true,
+          priority: true,
+          project: { select: { name: true } },
+        },
         take: 5,
       }),
     ]);
@@ -90,21 +101,50 @@ export class ChatbotService {
   private buildSystemPrompt(
     actor: JwtPayload,
     ctx: {
-      projects: { name: string; status: string; client: { company_name: string } | null; _count: { tasks: number } }[];
-      overdueTasks: { title: string; priority: string; due_date: Date | null; project: { name: string } | null }[];
-      reviewTasks: { title: string; priority: string; project: { name: string } | null }[];
+      projects: {
+        name: string;
+        status: string;
+        client: { company_name: string } | null;
+        _count: { tasks: number };
+      }[];
+      overdueTasks: {
+        title: string;
+        priority: string;
+        due_date: Date | null;
+        project: { name: string } | null;
+      }[];
+      reviewTasks: {
+        title: string;
+        priority: string;
+        project: { name: string } | null;
+      }[];
     },
   ): string {
     const projectList = ctx.projects.length
-      ? ctx.projects.map((p) => `  • ${p.name} (${p.status}) — client: ${p.client?.company_name ?? 'N/A'}, ${p._count.tasks} tasks`).join('\n')
+      ? ctx.projects
+          .map(
+            (p) =>
+              `  • ${p.name} (${p.status}) — client: ${p.client?.company_name ?? 'N/A'}, ${p._count.tasks} tasks`,
+          )
+          .join('\n')
       : '  None';
 
     const overdueList = ctx.overdueTasks.length
-      ? ctx.overdueTasks.map((t) => `  • "${t.title}" [${t.priority}] in ${t.project?.name ?? '?'} — overdue since ${t.due_date?.toLocaleDateString() ?? '?'}`).join('\n')
+      ? ctx.overdueTasks
+          .map(
+            (t) =>
+              `  • "${t.title}" [${t.priority}] in ${t.project?.name ?? '?'} — overdue since ${t.due_date?.toLocaleDateString() ?? '?'}`,
+          )
+          .join('\n')
       : '  None';
 
     const reviewList = ctx.reviewTasks.length
-      ? ctx.reviewTasks.map((t) => `  • "${t.title}" [${t.priority}] in ${t.project?.name ?? '?'}`).join('\n')
+      ? ctx.reviewTasks
+          .map(
+            (t) =>
+              `  • "${t.title}" [${t.priority}] in ${t.project?.name ?? '?'}`,
+          )
+          .join('\n')
       : '  None';
 
     return `You are an intelligent assistant built into MarketingERP — a project management platform for marketing agencies.

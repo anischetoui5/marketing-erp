@@ -36,11 +36,22 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'marketing_manager', 'production_manager')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create user and send invitation (admin: any role | managers: own agent type only)' })
-  @ApiResponse({ status: 201, description: 'User created and invitation queued' })
+  @ApiOperation({
+    summary:
+      'Create user and send invitation (admin: any role | managers: own agent type only)',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'User created and invitation queued',
+  })
   @ApiResponse({ status: 409, description: 'Email already in use' })
   async create(@Body() dto: CreateUserDto, @CurrentUser() user: JwtPayload) {
-    const result = await this.usersService.create(dto, user.sub, user.email, user.role);
+    const result = await this.usersService.create(
+      dto,
+      user.sub,
+      user.email,
+      user.role,
+    );
     return { data: result };
   }
 
@@ -57,7 +68,9 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'marketing_manager', 'production_manager')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'List users (admin: all | managers: their agent type only)' })
+  @ApiOperation({
+    summary: 'List users (admin: all | managers: their agent type only)',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   async findAll(
@@ -91,7 +104,12 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    const result = await this.usersService.update(id, dto, user.sub, user.email);
+    const result = await this.usersService.update(
+      id,
+      dto,
+      user.sub,
+      user.email,
+    );
     return { data: result };
   }
 }

@@ -32,12 +32,17 @@ export class ClientJwtAuthGuard implements CanActivate {
     }
 
     try {
-      const payload = await this.jwtService.verifyAsync<ClientJwtPayload>(token, {
-        secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
-      });
+      const payload = await this.jwtService.verifyAsync<ClientJwtPayload>(
+        token,
+        {
+          secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
+        },
+      );
 
       if (payload.type !== 'client') {
-        throw new ForbiddenException('Internal token cannot be used on portal routes');
+        throw new ForbiddenException(
+          'Internal token cannot be used on portal routes',
+        );
       }
 
       request['user'] = payload;

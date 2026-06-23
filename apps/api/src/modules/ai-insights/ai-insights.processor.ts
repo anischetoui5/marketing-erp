@@ -6,8 +6,13 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
-interface GenerateInsightPayload { projectId: string; syncJobId: string; }
-interface GenerateReportPayload  { reportId: string; }
+interface GenerateInsightPayload {
+  projectId: string;
+  syncJobId: string;
+}
+interface GenerateReportPayload {
+  reportId: string;
+}
 
 @Processor('ai-jobs')
 export class AiInsightsProcessor extends WorkerHost {
@@ -20,7 +25,9 @@ export class AiInsightsProcessor extends WorkerHost {
     private readonly notificationsService: NotificationsService,
   ) {
     super();
-    this.anthropic = new Anthropic({ apiKey: this.config.get<string>('ANTHROPIC_API_KEY', '') });
+    this.anthropic = new Anthropic({
+      apiKey: this.config.get<string>('ANTHROPIC_API_KEY', ''),
+    });
   }
 
   async process(job: Job): Promise<void> {
@@ -38,7 +45,9 @@ export class AiInsightsProcessor extends WorkerHost {
 
   // ── Insights ──────────────────────────────────────────────────────────────
 
-  private async handleGenerateInsight(data: GenerateInsightPayload): Promise<void> {
+  private async handleGenerateInsight(
+    data: GenerateInsightPayload,
+  ): Promise<void> {
     const { projectId, syncJobId } = data;
     const insightRow = await this.prisma.ai_insights.create({
       data: { project_id: projectId, sync_job_id: syncJobId, failed: false },
@@ -69,7 +78,9 @@ export class AiInsightsProcessor extends WorkerHost {
 
       const analyticsData = this.groupByCampaign(records);
       const startDate = records[0].record_date.toISOString().split('T')[0];
-      const endDate = records[records.length - 1].record_date.toISOString().split('T')[0];
+      const endDate = records[records.length - 1].record_date
+        .toISOString()
+        .split('T')[0];
 
       const prompt = `You are analyzing Meta Ads performance data for a marketing agency project.
 
@@ -99,11 +110,13 @@ Focus on: top performing campaigns, underperforming campaigns, budget efficiency
       const response = await this.anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 2000,
-        system: 'You are an expert digital marketing analyst. Always respond in valid JSON only.',
+        system:
+          'You are an expert digital marketing analyst. Always respond in valid JSON only.',
         messages: [{ role: 'user', content: prompt }],
       });
 
-      const text = response.content[0].type === 'text' ? response.content[0].text : '';
+      const text =
+        response.content[0].type === 'text' ? response.content[0].text : '';
       const parsed = this.parseJson(text) as {
         summary: string;
         insights: { title: string; body: string }[];
@@ -118,8 +131,8 @@ Focus on: top performing campaigns, underperforming campaigns, budget efficiency
         where: { id: insightRow.id },
         data: {
           summary: parsed.summary,
-          insights: parsed.insights as object[],
-          recommendations: parsed.recommendations as object[],
+          insights: parsed.insights,
+          recommendations: parsed.recommendations,
           prompt_tokens: promptTokens,
           completion_tokens: completionTokens,
           cost_usd: costUsd,
@@ -148,7 +161,11 @@ Focus on: top performing campaigns, underperforming campaigns, budget efficiency
       await this.prisma.ai_insights
         .update({
           where: { id: insightRow.id },
-          data: { failed: true, error_msg: (err as Error).message, retry_count: { increment: 1 } },
+          data: {
+            failed: true,
+            error_msg: (err as Error).message,
+            retry_count: { increment: 1 },
+          },
         })
         .catch(() => {});
       throw err;
@@ -157,7 +174,9 @@ Focus on: top performing campaigns, underperforming campaigns, budget efficiency
 
   // ── Reports ───────────────────────────────────────────────────────────────
 
-  private async handleGenerateReport(data: GenerateReportPayload): Promise<void> {
+  private async handleGenerateReport(
+    data: GenerateReportPayload,
+  ): Promise<void> {
     const { reportId } = data;
     try {
       const report = await this.prisma.reports.findUnique({
@@ -190,13 +209,27 @@ Focus on: top performing campaigns, underperforming campaigns, budget efficiency
           conversions: acc.conversions + r.conversions,
           conversionValue: acc.conversionValue + r.conversion_value,
         }),
-        { impressions: 0, clicks: 0, spend: 0, conversions: 0, conversionValue: 0 },
+        {
+          impressions: 0,
+          clicks: 0,
+          spend: 0,
+          conversions: 0,
+          conversionValue: 0,
+        },
       );
-      const ctr = totals.impressions ? (totals.clicks / totals.impressions) * 100 : null;
+      const ctr = totals.impressions
+        ? (totals.clicks / totals.impressions) * 100
+        : null;
       const roas = totals.spend ? totals.conversionValue / totals.spend : null;
 
-      const analyticsSummary = { ...totals, ctr, roas, recordCount: records.length };
-      const insightContext = latestInsight?.summary ?? 'No prior insights available.';
+      const analyticsSummary = {
+        ...totals,
+        ctr,
+        roas,
+        recordCount: records.length,
+      };
+      const insightContext =
+        latestInsight?.summary ?? 'No prior insights available.';
 
       const prompt = `You are writing a professional marketing performance report for a client.
 
@@ -231,11 +264,13 @@ Write in a professional but accessible tone. Avoid technical jargon. Use specifi
       const response = await this.anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 3000,
-        system: 'You are an expert marketing consultant writing professional client reports. Always respond in valid JSON only.',
+        system:
+          'You are an expert marketing consultant writing professional client reports. Always respond in valid JSON only.',
         messages: [{ role: 'user', content: prompt }],
       });
 
-      const text = response.content[0].type === 'text' ? response.content[0].text : '';
+      const text =
+        response.content[0].type === 'text' ? response.content[0].text : '';
       const parsed = this.parseJson(text) as {
         executiveSummary: string;
         performanceOverview: string;
@@ -254,8 +289,8 @@ Write in a professional but accessible tone. Avoid technical jargon. Use specifi
           status: 'ready',
           executive_summary: parsed.executiveSummary,
           performance_overview: parsed.performanceOverview,
-          key_insights: parsed.keyInsights as object[],
-          recommendations: parsed.recommendations as object[],
+          key_insights: parsed.keyInsights,
+          recommendations: parsed.recommendations,
           conclusion: parsed.conclusion,
           prompt_tokens: promptTokens,
           completion_tokens: completionTokens,
@@ -264,7 +299,9 @@ Write in a professional but accessible tone. Avoid technical jargon. Use specifi
       });
       this.logger.log(`Report ${reportId} generated successfully`);
     } catch (err) {
-      this.logger.error(`Report generation failed for ${reportId}: ${(err as Error).message}`);
+      this.logger.error(
+        `Report generation failed for ${reportId}: ${(err as Error).message}`,
+      );
       await this.prisma.reports
         .update({ where: { id: reportId }, data: { status: 'failed' } })
         .catch(() => {});
@@ -272,10 +309,39 @@ Write in a professional but accessible tone. Avoid technical jargon. Use specifi
     }
   }
 
-  private groupByCampaign(records: { campaign_id: string; campaign_name: string; impressions: number; clicks: number; spend: number; conversions: number; conversion_value: number; ctr: number | null; roas: number | null }[]) {
-    const map = new Map<string, { name: string; impressions: number; clicks: number; spend: number; conversions: number; conversionValue: number }>();
+  private groupByCampaign(
+    records: {
+      campaign_id: string;
+      campaign_name: string;
+      impressions: number;
+      clicks: number;
+      spend: number;
+      conversions: number;
+      conversion_value: number;
+      ctr: number | null;
+      roas: number | null;
+    }[],
+  ) {
+    const map = new Map<
+      string,
+      {
+        name: string;
+        impressions: number;
+        clicks: number;
+        spend: number;
+        conversions: number;
+        conversionValue: number;
+      }
+    >();
     for (const r of records) {
-      const cur = map.get(r.campaign_id) ?? { name: r.campaign_name, impressions: 0, clicks: 0, spend: 0, conversions: 0, conversionValue: 0 };
+      const cur = map.get(r.campaign_id) ?? {
+        name: r.campaign_name,
+        impressions: 0,
+        clicks: 0,
+        spend: 0,
+        conversions: 0,
+        conversionValue: 0,
+      };
       map.set(r.campaign_id, {
         name: r.campaign_name,
         impressions: cur.impressions + r.impressions,

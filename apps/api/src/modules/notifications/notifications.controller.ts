@@ -8,7 +8,12 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { AnyAuthGuard, AnyAuthUser } from '../../common/guards/any-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -32,11 +37,15 @@ export class NotificationsController {
     @Query('limit') limit?: string,
   ) {
     const actorType = user.type === 'client' ? 'client' : 'user';
-    const result = await this.notificationsService.findForUser(user.sub, actorType, {
-      isRead: isRead !== undefined ? isRead === 'true' : undefined,
-      page: page ? parseInt(page) : undefined,
-      limit: limit ? parseInt(limit) : undefined,
-    });
+    const result = await this.notificationsService.findForUser(
+      user.sub,
+      actorType,
+      {
+        isRead: isRead !== undefined ? isRead === 'true' : undefined,
+        page: page ? parseInt(page) : undefined,
+        limit: limit ? parseInt(limit) : undefined,
+      },
+    );
     return { data: result };
   }
 
@@ -44,7 +53,10 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Get unread notification count' })
   async unreadCount(@CurrentUser() user: AnyAuthUser) {
     const actorType = user.type === 'client' ? 'client' : 'user';
-    const result = await this.notificationsService.unreadCount(user.sub, actorType);
+    const result = await this.notificationsService.unreadCount(
+      user.sub,
+      actorType,
+    );
     return { data: result };
   }
 
@@ -53,7 +65,10 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Mark all notifications as read' })
   async markAllRead(@CurrentUser() user: AnyAuthUser) {
     const actorType = user.type === 'client' ? 'client' : 'user';
-    const result = await this.notificationsService.markAllRead(user.sub, actorType);
+    const result = await this.notificationsService.markAllRead(
+      user.sub,
+      actorType,
+    );
     return { data: result };
   }
 
@@ -62,7 +77,11 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Mark a notification as read' })
   async markRead(@Param('id') id: string, @CurrentUser() user: AnyAuthUser) {
     const actorType = user.type === 'client' ? 'client' : 'user';
-    const result = await this.notificationsService.markRead(id, user.sub, actorType);
+    const result = await this.notificationsService.markRead(
+      id,
+      user.sub,
+      actorType,
+    );
     return { data: result };
   }
 }

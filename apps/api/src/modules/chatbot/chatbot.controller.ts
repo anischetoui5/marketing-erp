@@ -8,7 +8,13 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
-const ALL_ROLES = ['admin', 'marketing_manager', 'marketing_agent', 'production_manager', 'production_agent'] as const;
+const ALL_ROLES = [
+  'admin',
+  'marketing_manager',
+  'marketing_agent',
+  'production_manager',
+  'production_agent',
+] as const;
 
 @ApiTags('chatbot')
 @ApiBearerAuth()
@@ -19,8 +25,13 @@ export class ChatbotController {
 
   @Post('message')
   @Roles(...ALL_ROLES)
-  @ApiOperation({ summary: 'Send a message to the AI assistant and get a reply' })
-  async sendMessage(@Body() dto: SendMessageDto, @CurrentUser() user: JwtPayload) {
+  @ApiOperation({
+    summary: 'Send a message to the AI assistant and get a reply',
+  })
+  async sendMessage(
+    @Body() dto: SendMessageDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
     const result = await this.chatbotService.chat(dto, user);
     return { data: result };
   }

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString, ValidateIf } from 'class-validator';
+import { IsIn, IsString, ValidateIf } from 'class-validator';
 
 export class ReviewTaskDto {
   @ApiProperty({ enum: ['client_approved', 'client_rejected'] })
@@ -8,6 +8,8 @@ export class ReviewTaskDto {
 
   @ApiPropertyOptional()
   @ValidateIf((o: ReviewTaskDto) => o.decision === 'client_rejected')
-  @IsString({ message: 'A rejection comment is required when rejecting a task' })
+  @IsString({
+    message: 'A rejection comment is required when rejecting a task',
+  })
   comment?: string;
 }

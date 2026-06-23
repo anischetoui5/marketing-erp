@@ -7,7 +7,12 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { type Request } from 'express';
 import { PortalAuthService } from './portal-auth.service';
 import { PortalLoginDto } from './dto/portal-login.dto';
@@ -25,10 +30,17 @@ export class PortalAuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Client portal login' })
   @ApiResponse({ status: 200, description: 'Login successful' })
-  @ApiResponse({ status: 401, description: 'Invalid credentials or account locked' })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid credentials or account locked',
+  })
   async login(@Body() dto: PortalLoginDto, @Req() req: Request) {
     const ipAddress = req.ip ?? req.socket.remoteAddress;
-    const result = await this.portalAuthService.login(dto.email, dto.password, ipAddress);
+    const result = await this.portalAuthService.login(
+      dto.email,
+      dto.password,
+      ipAddress,
+    );
     return { data: result };
   }
 

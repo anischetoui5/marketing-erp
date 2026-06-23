@@ -24,7 +24,9 @@ export class ReportsService {
   ) {}
 
   async create(dto: CreateReportDto, actor: JwtPayload) {
-    const project = await this.prisma.projects.findUnique({ where: { id: dto.projectId } });
+    const project = await this.prisma.projects.findUnique({
+      where: { id: dto.projectId },
+    });
     if (!project) throw new NotFoundException('Project not found');
 
     const report = await this.prisma.reports.create({
@@ -48,7 +50,12 @@ export class ReportsService {
 
   async findAll(
     actor: JwtPayload,
-    query: { projectId?: string; status?: string; page?: number; limit?: number },
+    query: {
+      projectId?: string;
+      status?: string;
+      page?: number;
+      limit?: number;
+    },
   ) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(50, query.limit ?? 20);
@@ -81,7 +88,10 @@ export class ReportsService {
     };
   }
 
-  async findOne(id: string, actor: JwtPayload | { sub: string; type: 'client'; clientId: string }) {
+  async findOne(
+    id: string,
+    actor: JwtPayload | { sub: string; type: 'client'; clientId: string },
+  ) {
     const report = await this.prisma.reports.findUnique({
       where: { id },
       include: {
@@ -93,7 +103,10 @@ export class ReportsService {
 
     if ((actor as { type?: string }).type === 'client') {
       const clientActor = actor as { clientId: string };
-      if (!report.shared_with_client || report.project.client_id !== clientActor.clientId) {
+      if (
+        !report.shared_with_client ||
+        report.project.client_id !== clientActor.clientId
+      ) {
         throw new ForbiddenException('Report not available');
       }
     }
@@ -104,10 +117,13 @@ export class ReportsService {
   async shareReport(id: string, actor: JwtPayload) {
     const report = await this.prisma.reports.findUnique({
       where: { id },
-      include: { project: { include: { client: { include: { client_users: true } } } } },
+      include: {
+        project: { include: { client: { include: { client_users: true } } } },
+      },
     });
     if (!report) throw new NotFoundException('Report not found');
-    if (report.status !== 'ready') throw new ForbiddenException('Report is not ready yet');
+    if (report.status !== 'ready')
+      throw new ForbiddenException('Report is not ready yet');
 
     const updated = await this.prisma.reports.update({
       where: { id },

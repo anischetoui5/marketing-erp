@@ -1,5 +1,10 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -14,10 +19,22 @@ export class AnalyticsController {
   @Get('overview')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'marketing_manager', 'marketing_agent')
-  @ApiOperation({ summary: 'Aggregate daily spend/impressions/clicks across all projects (last N days)' })
-  @ApiQuery({ name: 'days', required: false, type: Number, description: 'Number of days to look back (default 30)' })
+  @ApiOperation({
+    summary:
+      'Aggregate daily spend/impressions/clicks across all projects (last N days)',
+  })
+  @ApiQuery({
+    name: 'days',
+    required: false,
+    type: Number,
+    description: 'Number of days to look back (default 30)',
+  })
   async getDashboardOverview(@Query('days') days?: string) {
-    return { data: await this.analyticsService.getDashboardOverview(days ? parseInt(days) : 30) };
+    return {
+      data: await this.analyticsService.getDashboardOverview(
+        days ? parseInt(days) : 30,
+      ),
+    };
   }
 
   @Get(':projectId/summary')
@@ -33,7 +50,14 @@ export class AnalyticsController {
     @Query('dateTo') dateTo?: string,
     @Query('campaignId') campaignId?: string,
   ) {
-    return { data: await this.analyticsService.getSummary(projectId, dateFrom, dateTo, campaignId) };
+    return {
+      data: await this.analyticsService.getSummary(
+        projectId,
+        dateFrom,
+        dateTo,
+        campaignId,
+      ),
+    };
   }
 
   @Get(':projectId/campaigns')
@@ -45,7 +69,13 @@ export class AnalyticsController {
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
   ) {
-    return { data: await this.analyticsService.getCampaigns(projectId, dateFrom, dateTo) };
+    return {
+      data: await this.analyticsService.getCampaigns(
+        projectId,
+        dateFrom,
+        dateTo,
+      ),
+    };
   }
 
   @Get(':projectId/daily')
@@ -58,7 +88,14 @@ export class AnalyticsController {
     @Query('dateTo') dateTo?: string,
     @Query('campaignId') campaignId?: string,
   ) {
-    return { data: await this.analyticsService.getDaily(projectId, dateFrom, dateTo, campaignId) };
+    return {
+      data: await this.analyticsService.getDaily(
+        projectId,
+        dateFrom,
+        dateTo,
+        campaignId,
+      ),
+    };
   }
 
   @Get(':projectId/top-campaigns')

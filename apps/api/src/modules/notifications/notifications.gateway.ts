@@ -13,7 +13,9 @@ import { Server, Socket } from 'socket.io';
   namespace: '/notifications',
   cors: { origin: '*', credentials: true },
 })
-export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class NotificationsGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer() server: Server;
   private readonly logger = new Logger(NotificationsGateway.name);
 
@@ -25,13 +27,19 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
   handleConnection(client: Socket) {
     try {
       const token = client.handshake.auth?.token as string | undefined;
-      if (!token) { client.disconnect(); return; }
+      if (!token) {
+        client.disconnect();
+        return;
+      }
 
       const payload = this.jwtService.verify(token, {
         secret: this.config.get<string>('JWT_ACCESS_SECRET'),
-      }) as { sub: string; type?: string };
+      });
 
-      if (payload.type && payload.type !== 'access') { client.disconnect(); return; }
+      if (payload.type && payload.type !== 'access') {
+        client.disconnect();
+        return;
+      }
 
       void client.join(`user:${payload.sub}`);
       this.logger.debug(`Client connected: user:${payload.sub}`);
@@ -44,7 +52,10 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     this.logger.debug(`Client disconnected: ${client.id}`);
   }
 
-  emitToUser(userId: string, data: { id: string; type: string; message: string; link?: string | null }) {
+  emitToUser(
+    userId: string,
+    data: { id: string; type: string; message: string; link?: string | null },
+  ) {
     this.server.to(`user:${userId}`).emit('notification', data);
   }
 }

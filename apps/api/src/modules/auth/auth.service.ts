@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -27,7 +23,9 @@ export class AuthService {
   ) {}
 
   async login(dto: LoginDto, ipAddress?: string) {
-    const user = await this.prisma.users.findUnique({ where: { email: dto.email } });
+    const user = await this.prisma.users.findUnique({
+      where: { email: dto.email },
+    });
 
     if (!user || !user.password_hash) {
       throw new UnauthorizedException('Invalid email or password');
@@ -37,23 +35,34 @@ export class AuthService {
       throw new UnauthorizedException('Account temporarily locked');
     }
 
-    const passwordValid = await bcrypt.compare(dto.password, user.password_hash);
+    const passwordValid = await bcrypt.compare(
+      dto.password,
+      user.password_hash,
+    );
 
     if (!passwordValid) {
       const newAttempts = user.failed_login_attempts + 1;
-      const updateData: Parameters<typeof this.prisma.users.update>[0]['data'] = {
-        failed_login_attempts: newAttempts,
-      };
+      const updateData: Parameters<typeof this.prisma.users.update>[0]['data'] =
+        {
+          failed_login_attempts: newAttempts,
+        };
 
       if (newAttempts >= LOCKOUT_MAX_ATTEMPTS) {
-        const windowAgo = new Date(Date.now() - LOCKOUT_WINDOW_MINUTES * 60 * 1000);
+        const windowAgo = new Date(
+          Date.now() - LOCKOUT_WINDOW_MINUTES * 60 * 1000,
+        );
         if (!user.updated_at || user.updated_at > windowAgo) {
-          updateData.locked_until = new Date(Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000);
+          updateData.locked_until = new Date(
+            Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000,
+          );
           this.logger.warn(`Account locked for user ${user.email}`);
         }
       }
 
-      await this.prisma.users.update({ where: { id: user.id }, data: updateData });
+      await this.prisma.users.update({
+        where: { id: user.id },
+        data: updateData,
+      });
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -62,7 +71,12 @@ export class AuthService {
       data: { failed_login_attempts: 0, locked_until: null },
     });
 
-    const tokens = await this.generateTokenPair(user.id, user.email, user.role, user.department ?? undefined);
+    const tokens = await this.generateTokenPair(
+      user.id,
+      user.email,
+      user.role,
+      user.department ?? undefined,
+    );
 
     await this.auditLogService.log({
       actorId: user.id,
@@ -125,7 +139,10 @@ export class AuthService {
       });
     }
 
-    const user = await this.prisma.users.findUnique({ where: { id: userId }, select: { email: true } });
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
 
     await this.auditLogService.log({
       actorId: userId,
@@ -183,7 +200,8 @@ export class AuthService {
     const rawRefreshToken = crypto.randomBytes(40).toString('hex');
     const tokenHash = this.hashToken(rawRefreshToken);
 
-    const expiresIn = this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d';
+    const expiresIn =
+      this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d';
     const expiresAt = this.parseExpiry(expiresIn);
 
     await this.prisma.refresh_tokens.create({
@@ -205,10 +223,13 @@ export class AuthService {
     const unit = expiry.slice(-1);
     const value = parseInt(expiry.slice(0, -1), 10);
     const ms =
-      unit === 'd' ? value * 24 * 60 * 60 * 1000 :
-      unit === 'h' ? value * 60 * 60 * 1000 :
-      unit === 'm' ? value * 60 * 1000 :
-      value * 1000;
+      unit === 'd'
+        ? value * 24 * 60 * 60 * 1000
+        : unit === 'h'
+          ? value * 60 * 60 * 1000
+          : unit === 'm'
+            ? value * 60 * 1000
+            : value * 1000;
     return new Date(Date.now() + ms);
   }
 }

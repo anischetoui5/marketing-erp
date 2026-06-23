@@ -60,8 +60,14 @@ export class MetaAdsProcessor extends WorkerHost {
         include: { client: true },
       });
 
-      if (!project || project.status !== 'active' || !project.meta_ads_account_id) {
-        this.logger.warn(`Skipping sync for project ${projectId}: not active or no account id`);
+      if (
+        !project ||
+        project.status !== 'active' ||
+        !project.meta_ads_account_id
+      ) {
+        this.logger.warn(
+          `Skipping sync for project ${projectId}: not active or no account id`,
+        );
         return;
       }
 
@@ -81,7 +87,8 @@ export class MetaAdsProcessor extends WorkerHost {
       if (!token) throw new Error('No Meta access token configured');
 
       const accountId = project.meta_ads_account_id;
-      const fields = 'campaign_id,campaign_name,impressions,clicks,spend,reach,conversions,conversion_values';
+      const fields =
+        'campaign_id,campaign_name,impressions,clicks,spend,reach,conversions,conversion_values';
       const url =
         `https://graph.facebook.com/v19.0/act_${accountId}/insights` +
         `?fields=${fields}&date_preset=last_30d&level=campaign&time_increment=1&access_token=${token}`;
@@ -101,7 +108,13 @@ export class MetaAdsProcessor extends WorkerHost {
         const conversions = this.sumActions(row.conversions);
         const conversionValue = this.sumActions(row.conversion_values);
 
-        const kpis = calcKpis(impressions, clicks, spend, conversions, conversionValue);
+        const kpis = calcKpis(
+          impressions,
+          clicks,
+          spend,
+          conversions,
+          conversionValue,
+        );
 
         await this.prisma.analytics_records.upsert({
           where: {
@@ -113,18 +126,34 @@ export class MetaAdsProcessor extends WorkerHost {
           },
           update: {
             campaign_name: row.campaign_name,
-            impressions, clicks, spend, reach, conversions,
+            impressions,
+            clicks,
+            spend,
+            reach,
+            conversions,
             conversion_value: conversionValue,
-            ctr: kpis.ctr, cpc: kpis.cpc, cpa: kpis.cpa, roas: kpis.roas, cpm: kpis.cpm,
+            ctr: kpis.ctr,
+            cpc: kpis.cpc,
+            cpa: kpis.cpa,
+            roas: kpis.roas,
+            cpm: kpis.cpm,
           },
           create: {
             project_id: projectId,
             campaign_id: row.campaign_id,
             campaign_name: row.campaign_name,
             record_date: new Date(row.date_start),
-            impressions, clicks, spend, reach, conversions,
+            impressions,
+            clicks,
+            spend,
+            reach,
+            conversions,
             conversion_value: conversionValue,
-            ctr: kpis.ctr, cpc: kpis.cpc, cpa: kpis.cpa, roas: kpis.roas, cpm: kpis.cpm,
+            ctr: kpis.ctr,
+            cpc: kpis.cpc,
+            cpa: kpis.cpa,
+            roas: kpis.roas,
+            cpm: kpis.cpm,
           },
         });
       }
@@ -134,7 +163,9 @@ export class MetaAdsProcessor extends WorkerHost {
         data: { status: 'succeeded', finished_at: new Date() },
       });
 
-      this.logger.log(`Sync succeeded for project ${projectId}, ${body.data?.length ?? 0} records`);
+      this.logger.log(
+        `Sync succeeded for project ${projectId}, ${body.data?.length ?? 0} records`,
+      );
 
       await this.aiJobsQueue.add(
         'generate-insight',
@@ -142,12 +173,18 @@ export class MetaAdsProcessor extends WorkerHost {
         { attempts: 2, backoff: { type: 'exponential', delay: 10000 } },
       );
     } catch (err) {
-      this.logger.error(`Sync failed for project ${projectId}: ${(err as Error).message}`);
+      this.logger.error(
+        `Sync failed for project ${projectId}: ${(err as Error).message}`,
+      );
       if (syncJobId) {
         await this.prisma.sync_jobs
           .update({
             where: { id: syncJobId },
-            data: { status: 'failed', finished_at: new Date(), error_msg: (err as Error).message },
+            data: {
+              status: 'failed',
+              finished_at: new Date(),
+              error_msg: (err as Error).message,
+            },
           })
           .catch(() => {});
       }

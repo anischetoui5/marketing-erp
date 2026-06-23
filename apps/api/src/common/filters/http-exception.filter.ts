@@ -25,7 +25,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message = (resp.message as string | string[]) ?? exception.message;
         error = (resp.error as string) ?? exception.name;
       } else {
-        message = exceptionResponse as string;
+        message = exceptionResponse;
         error = exception.name;
       }
     }

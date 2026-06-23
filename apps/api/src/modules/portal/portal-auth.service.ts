@@ -22,7 +22,9 @@ export class PortalAuthService {
   ) {}
 
   async login(email: string, password: string, ipAddress?: string) {
-    const clientUser = await this.prisma.client_users.findUnique({ where: { email } });
+    const clientUser = await this.prisma.client_users.findUnique({
+      where: { email },
+    });
 
     if (!clientUser || !clientUser.password_hash) {
       throw new UnauthorizedException('Invalid email or password');
@@ -32,18 +34,26 @@ export class PortalAuthService {
       throw new UnauthorizedException('Account temporarily locked');
     }
 
-    const passwordValid = await bcrypt.compare(password, clientUser.password_hash);
+    const passwordValid = await bcrypt.compare(
+      password,
+      clientUser.password_hash,
+    );
 
     if (!passwordValid) {
       const newAttempts = clientUser.failed_login_attempts + 1;
-      const updateData: { failed_login_attempts: number; locked_until?: Date } = {
-        failed_login_attempts: newAttempts,
-      };
+      const updateData: { failed_login_attempts: number; locked_until?: Date } =
+        {
+          failed_login_attempts: newAttempts,
+        };
 
       if (newAttempts >= LOCKOUT_MAX_ATTEMPTS) {
-        const windowAgo = new Date(Date.now() - LOCKOUT_WINDOW_MINUTES * 60 * 1000);
+        const windowAgo = new Date(
+          Date.now() - LOCKOUT_WINDOW_MINUTES * 60 * 1000,
+        );
         if (!clientUser.updated_at || clientUser.updated_at > windowAgo) {
-          updateData.locked_until = new Date(Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000);
+          updateData.locked_until = new Date(
+            Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000,
+          );
           this.logger.warn(`Client account locked for ${clientUser.email}`);
         }
       }
@@ -136,7 +146,11 @@ export class PortalAuthService {
     return { message: 'Logged out successfully' };
   }
 
-  private async generateTokenPair(clientUserId: string, email: string, clientId: string) {
+  private async generateTokenPair(
+    clientUserId: string,
+    email: string,
+    clientId: string,
+  ) {
     const payload = { sub: clientUserId, email, clientId, type: 'client' };
 
     const accessToken = await this.jwtService.signAsync(payload, {
@@ -169,10 +183,13 @@ export class PortalAuthService {
     const unit = expiry.slice(-1);
     const value = parseInt(expiry.slice(0, -1), 10);
     const ms =
-      unit === 'd' ? value * 24 * 60 * 60 * 1000
-      : unit === 'h' ? value * 60 * 60 * 1000
-      : unit === 'm' ? value * 60 * 1000
-      : value * 1000;
+      unit === 'd'
+        ? value * 24 * 60 * 60 * 1000
+        : unit === 'h'
+          ? value * 60 * 60 * 1000
+          : unit === 'm'
+            ? value * 60 * 1000
+            : value * 1000;
     return new Date(Date.now() + ms);
   }
 }

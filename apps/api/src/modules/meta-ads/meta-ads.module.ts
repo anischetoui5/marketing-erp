@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
-import { ScheduleModule } from '@nestjs/schedule';
 import { MetaAdsController } from './meta-ads.controller';
 import { MetaAdsService } from './meta-ads.service';
 import { MetaAdsProcessor } from './meta-ads.processor';

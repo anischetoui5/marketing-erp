@@ -21,7 +21,9 @@ export class ProjectsService {
   ) {}
 
   async create(dto: CreateProjectDto, actor: JwtPayload) {
-    const client = await this.prisma.clients.findUnique({ where: { id: dto.clientId } });
+    const client = await this.prisma.clients.findUnique({
+      where: { id: dto.clientId },
+    });
     if (!client) throw new NotFoundException('Client not found');
     if (client.is_archived) throw new BadRequestException('Client is archived');
 
@@ -54,13 +56,20 @@ export class ProjectsService {
 
   async findAll(
     actor: JwtPayload,
-    query: { clientId?: string; status?: string; page?: number; limit?: number },
+    query: {
+      clientId?: string;
+      status?: string;
+      page?: number;
+      limit?: number;
+    },
   ) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(50, query.limit ?? 20);
     const skip = (page - 1) * limit;
 
-    const isAgent = ['marketing_agent', 'production_agent'].includes(actor.role);
+    const isAgent = ['marketing_agent', 'production_agent'].includes(
+      actor.role,
+    );
 
     const where: Record<string, unknown> = {};
     if (query.clientId) where.client_id = query.clientId;
@@ -97,16 +106,28 @@ export class ProjectsService {
         client: { select: { id: true, company_name: true } },
         project_users: {
           include: {
-            user: { select: { id: true, full_name: true, email: true, role: true, department: true } },
+            user: {
+              select: {
+                id: true,
+                full_name: true,
+                email: true,
+                role: true,
+                department: true,
+              },
+            },
           },
         },
       },
     });
     if (!project) throw new NotFoundException('Project not found');
 
-    const isAgent = ['marketing_agent', 'production_agent'].includes(actor.role);
+    const isAgent = ['marketing_agent', 'production_agent'].includes(
+      actor.role,
+    );
     if (isAgent) {
-      const isMember = project.project_users.some((pu) => pu.user_id === actor.sub);
+      const isMember = project.project_users.some(
+        (pu) => pu.user_id === actor.sub,
+      );
       if (!isMember) throw new ForbiddenException('Access denied');
     }
 
@@ -132,7 +153,9 @@ export class ProjectsService {
         where: { project_id: id, status: { notIn: ['done'] } },
       });
       if (activeTasksCount > 0) {
-        throw new BadRequestException('Cannot archive project with active tasks');
+        throw new BadRequestException(
+          'Cannot archive project with active tasks',
+        );
       }
     }
 
@@ -230,7 +253,15 @@ export class ProjectsService {
     const members = await this.prisma.project_users.findMany({
       where: { project_id: id },
       include: {
-        user: { select: { id: true, full_name: true, email: true, role: true, department: true } },
+        user: {
+          select: {
+            id: true,
+            full_name: true,
+            email: true,
+            role: true,
+            department: true,
+          },
+        },
       },
     });
     return {
@@ -274,7 +305,9 @@ export class ProjectsService {
       createdBy: p.created_by,
       createdAt: p.created_at.toISOString(),
       updatedAt: p.updated_at.toISOString(),
-      client: p.client ? { id: p.client.id, companyName: p.client.company_name } : undefined,
+      client: p.client
+        ? { id: p.client.id, companyName: p.client.company_name }
+        : undefined,
     };
   }
 }

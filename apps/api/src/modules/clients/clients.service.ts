@@ -61,7 +61,12 @@ export class ClientsService {
     return client;
   }
 
-  async findAll(page: number, limit: number, archived: boolean, search?: string) {
+  async findAll(
+    page: number,
+    limit: number,
+    archived: boolean,
+    search?: string,
+  ) {
     const where: Record<string, unknown> = { is_archived: archived };
 
     if (search) {
@@ -95,7 +100,12 @@ export class ClientsService {
     return client;
   }
 
-  async update(id: string, dto: UpdateClientDto, actorId: string, actorEmail: string) {
+  async update(
+    id: string,
+    dto: UpdateClientDto,
+    actorId: string,
+    actorEmail: string,
+  ) {
     const existing = await this.prisma.clients.findUnique({
       where: { id },
       select: SAFE_CLIENT_SELECT,
@@ -105,13 +115,21 @@ export class ClientsService {
     const updated = await this.prisma.clients.update({
       where: { id },
       data: {
-        ...(dto.companyName !== undefined ? { company_name: dto.companyName } : {}),
-        ...(dto.contactName !== undefined ? { contact_name: dto.contactName } : {}),
-        ...(dto.contactEmail !== undefined ? { contact_email: dto.contactEmail } : {}),
+        ...(dto.companyName !== undefined
+          ? { company_name: dto.companyName }
+          : {}),
+        ...(dto.contactName !== undefined
+          ? { contact_name: dto.contactName }
+          : {}),
+        ...(dto.contactEmail !== undefined
+          ? { contact_email: dto.contactEmail }
+          : {}),
         ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
         ...(dto.industry !== undefined ? { industry: dto.industry } : {}),
         ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
-        ...(dto.isArchived !== undefined ? { is_archived: dto.isArchived } : {}),
+        ...(dto.isArchived !== undefined
+          ? { is_archived: dto.isArchived }
+          : {}),
       },
       select: SAFE_CLIENT_SELECT,
     });
@@ -122,7 +140,7 @@ export class ClientsService {
       action: 'clients.update',
       entityType: 'client',
       entityId: id,
-      previousState: existing as unknown as Record<string, unknown>,
+      previousState: existing,
       newState: dto as unknown as Record<string, unknown>,
     });
 
@@ -136,7 +154,9 @@ export class ClientsService {
     actorId: string,
     actorEmail: string,
   ) {
-    const client = await this.prisma.clients.findUnique({ where: { id: clientId } });
+    const client = await this.prisma.clients.findUnique({
+      where: { id: clientId },
+    });
     if (!client) throw new NotFoundException('Client not found');
 
     const invitationToken = crypto.randomBytes(32).toString('hex');
@@ -170,7 +190,9 @@ export class ClientsService {
   }
 
   async findClientUsers(clientId: string) {
-    const client = await this.prisma.clients.findUnique({ where: { id: clientId } });
+    const client = await this.prisma.clients.findUnique({
+      where: { id: clientId },
+    });
     if (!client) throw new NotFoundException('Client not found');
 
     return this.prisma.client_users.findMany({

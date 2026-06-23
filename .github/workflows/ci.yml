@@ -12,9 +12,6 @@ jobs:
   lint-api:
     name: Lint API
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/api
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,14 +19,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --workspace=apps/api
-      - run: npm run lint
+      - run: npx prisma generate --schema apps/api/prisma/schema.prisma
+      - run: npm run lint --workspace=apps/api
 
   test-api:
     name: Test API
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/api
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -37,8 +32,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --workspace=apps/api
-      - run: npx prisma generate
-      - run: npm test
+      - run: npx prisma generate --schema apps/api/prisma/schema.prisma
+      - run: npm test --workspace=apps/api
 
   # ── Docker builds ───────────────────────────────────────────────────────────
   build-api:

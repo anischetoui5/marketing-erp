@@ -14,7 +14,9 @@ describe('RolesGuard', () => {
   let reflector: jest.Mocked<Reflector>;
 
   beforeEach(() => {
-    reflector = { getAllAndOverride: jest.fn() } as unknown as jest.Mocked<Reflector>;
+    reflector = {
+      getAllAndOverride: jest.fn(),
+    } as unknown as jest.Mocked<Reflector>;
     guard = new RolesGuard(reflector);
   });
 
@@ -30,8 +32,8 @@ describe('RolesGuard', () => {
 
   it('denies access when role does not match', () => {
     reflector.getAllAndOverride.mockReturnValue(['admin']);
-    expect(() => guard.canActivate(createMockContext('marketing_agent'))).toThrow(
-      ForbiddenException,
-    );
+    expect(() =>
+      guard.canActivate(createMockContext('marketing_agent')),
+    ).toThrow(ForbiddenException);
   });
 });

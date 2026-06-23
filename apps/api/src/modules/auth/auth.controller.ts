@@ -31,7 +31,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({ status: 200, description: 'Login successful' })
-  @ApiResponse({ status: 401, description: 'Invalid credentials or account locked' })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid credentials or account locked',
+  })
   async login(@Body() dto: LoginDto, @Req() req: Request) {
     const ipAddress = req.ip ?? req.socket.remoteAddress;
     const result = await this.authService.login(dto, ipAddress);
@@ -56,7 +59,11 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
   async logout(@CurrentUser() user: JwtPayload, @Req() req: Request) {
     const ipAddress = req.ip ?? req.socket.remoteAddress;
-    const result = await this.authService.logout(user.sub, undefined, ipAddress);
+    const result = await this.authService.logout(
+      user.sub,
+      undefined,
+      ipAddress,
+    );
     return { data: result };
   }
 

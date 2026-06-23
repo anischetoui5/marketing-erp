@@ -28,24 +28,34 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 const ROLE_TRANSITIONS: Record<string, [string, string][]> = {
   marketing_agent: [
     ['todo', 'in_progress'],
-    ['in_progress', 'review'], ['in_progress', 'todo'],
-    ['revision', 'review'],    ['revision', 'in_progress'],
+    ['in_progress', 'review'],
+    ['in_progress', 'todo'],
+    ['revision', 'review'],
+    ['revision', 'in_progress'],
     ['review', 'in_progress'],
   ],
   production_agent: [
     ['todo', 'in_progress'],
-    ['in_progress', 'review'], ['in_progress', 'todo'],
-    ['revision', 'review'],    ['revision', 'in_progress'],
+    ['in_progress', 'review'],
+    ['in_progress', 'todo'],
+    ['revision', 'review'],
+    ['revision', 'in_progress'],
     ['review', 'in_progress'],
   ],
   marketing_manager: [
-    ['review', 'approved'], ['review', 'revision'], ['review', 'in_progress'],
-    ['approved', 'done'],   ['approved', 'review'],
+    ['review', 'approved'],
+    ['review', 'revision'],
+    ['review', 'in_progress'],
+    ['approved', 'done'],
+    ['approved', 'review'],
     ['done', 'approved'],
   ],
   production_manager: [
-    ['review', 'approved'], ['review', 'revision'], ['review', 'in_progress'],
-    ['approved', 'done'],   ['approved', 'review'],
+    ['review', 'approved'],
+    ['review', 'revision'],
+    ['review', 'in_progress'],
+    ['approved', 'done'],
+    ['approved', 'review'],
     ['done', 'approved'],
   ],
 };
@@ -62,14 +72,22 @@ export class TasksService {
 
   async create(dto: CreateTaskDto, actor: JwtPayload) {
     const project = await this.getAccessibleProject(dto.projectId, actor);
-    if (!project) throw new NotFoundException('Project not found or access denied');
+    if (!project)
+      throw new NotFoundException('Project not found or access denied');
 
     // Managers can only create tasks for their department
     if (actor.role === 'marketing_manager' && dto.department !== 'marketing') {
-      throw new ForbiddenException('Marketing manager can only create marketing tasks');
+      throw new ForbiddenException(
+        'Marketing manager can only create marketing tasks',
+      );
     }
-    if (actor.role === 'production_manager' && dto.department !== 'production') {
-      throw new ForbiddenException('Production manager can only create production tasks');
+    if (
+      actor.role === 'production_manager' &&
+      dto.department !== 'production'
+    ) {
+      throw new ForbiddenException(
+        'Production manager can only create production tasks',
+      );
     }
 
     const task = await this.prisma.tasks.create({
@@ -86,12 +104,18 @@ export class TasksService {
 
     if (dto.assigneeIds?.length) {
       await this.prisma.task_assignees.createMany({
-        data: dto.assigneeIds.map((uid) => ({ task_id: task.id, user_id: uid })),
+        data: dto.assigneeIds.map((uid) => ({
+          task_id: task.id,
+          user_id: uid,
+        })),
         skipDuplicates: true,
       });
 
       // Notify each assignee
-      const projectForEmail = await this.prisma.projects.findUnique({ where: { id: dto.projectId }, select: { name: true } });
+      const projectForEmail = await this.prisma.projects.findUnique({
+        where: { id: dto.projectId },
+        select: { name: true },
+      });
       await Promise.all(
         dto.assigneeIds.map((uid) =>
           this.notificationsService.send({
@@ -99,7 +123,10 @@ export class TasksService {
             type: 'task_assigned',
             message: `You were assigned to "${task.title}"`,
             link: `/dashboard/tasks?taskId=${task.id}`,
-            emailMeta: { taskTitle: task.title, projectName: projectForEmail?.name ?? '' },
+            emailMeta: {
+              taskTitle: task.title,
+              projectName: projectForEmail?.name ?? '',
+            },
           }),
         ),
       );
@@ -132,7 +159,9 @@ export class TasksService {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(50, query.limit ?? 30);
     const skip = (page - 1) * limit;
-    const isAgent = ['marketing_agent', 'production_agent'].includes(actor.role);
+    const isAgent = ['marketing_agent', 'production_agent'].includes(
+      actor.role,
+    );
 
     const where: Record<string, unknown> = {};
     if (query.projectId) where.project_id = query.projectId;
@@ -153,9 +182,17 @@ export class TasksService {
         take: limit,
         orderBy: { created_at: 'desc' },
         include: {
-          project: { select: { id: true, name: true, client: { select: { company_name: true } } } },
+          project: {
+            select: {
+              id: true,
+              name: true,
+              client: { select: { company_name: true } },
+            },
+          },
           task_assignees: {
-            include: { user: { select: { id: true, full_name: true, role: true } } },
+            include: {
+              user: { select: { id: true, full_name: true, role: true } },
+            },
           },
           _count: { select: { comments: true } },
         },
@@ -176,9 +213,17 @@ export class TasksService {
     const task = await this.prisma.tasks.findUnique({
       where: { id },
       include: {
-        project: { select: { id: true, name: true, client: { select: { company_name: true } } } },
+        project: {
+          select: {
+            id: true,
+            name: true,
+            client: { select: { company_name: true } },
+          },
+        },
         task_assignees: {
-          include: { user: { select: { id: true, full_name: true, role: true } } },
+          include: {
+            user: { select: { id: true, full_name: true, role: true } },
+          },
         },
         attachments: {
           orderBy: { created_at: 'asc' },
@@ -189,9 +234,13 @@ export class TasksService {
     });
     if (!task) throw new NotFoundException('Task not found');
 
-    const isAgent = ['marketing_agent', 'production_agent'].includes(actor.role);
+    const isAgent = ['marketing_agent', 'production_agent'].includes(
+      actor.role,
+    );
     if (isAgent) {
-      const isAssigned = task.task_assignees.some((a) => a.user_id === actor.sub);
+      const isAssigned = task.task_assignees.some(
+        (a) => a.user_id === actor.sub,
+      );
       if (!isAssigned) throw new ForbiddenException('Access denied');
     }
 
@@ -218,14 +267,21 @@ export class TasksService {
       const allowed = ROLE_TRANSITIONS[actor.role] ?? [];
       const canDo = allowed.some(([f, t]) => f === from && t === to);
       if (!canDo) {
-        throw new ForbiddenException(`Your role cannot move a task from ${from} to ${to}`);
+        throw new ForbiddenException(
+          `Your role cannot move a task from ${from} to ${to}`,
+        );
       }
     }
 
-    const updateData: { status: task_status; revision_count?: number } = { status: to as task_status };
+    const updateData: { status: task_status; revision_count?: number } = {
+      status: to,
+    };
     if (to === 'revision') updateData.revision_count = task.revision_count + 1;
 
-    const updated = await this.prisma.tasks.update({ where: { id }, data: updateData });
+    const updated = await this.prisma.tasks.update({
+      where: { id },
+      data: updateData,
+    });
 
     // Notify all assignees
     await Promise.all(
@@ -249,7 +305,11 @@ export class TasksService {
       newState: { status: to },
     });
 
-    return { id: updated.id, status: updated.status, revisionCount: updated.revision_count };
+    return {
+      id: updated.id,
+      status: updated.status,
+      revisionCount: updated.revision_count,
+    };
   }
 
   async update(id: string, dto: UpdateTaskDto, actor: JwtPayload) {
@@ -273,7 +333,10 @@ export class TasksService {
         await this.prisma.task_assignees.createMany({
           data: dto.assigneeIds.map((uid) => ({ task_id: id, user_id: uid })),
         });
-        const proj = await this.prisma.projects.findUnique({ where: { id: task.project_id }, select: { name: true } });
+        const proj = await this.prisma.projects.findUnique({
+          where: { id: task.project_id },
+          select: { name: true },
+        });
         await Promise.all(
           dto.assigneeIds.map((uid) =>
             this.notificationsService.send({
@@ -281,7 +344,10 @@ export class TasksService {
               type: 'task_assigned',
               message: `You were assigned to "${task.title}"`,
               link: `/dashboard/tasks?taskId=${task.id}`,
-              emailMeta: { taskTitle: task.title, projectName: proj?.name ?? '' },
+              emailMeta: {
+                taskTitle: task.title,
+                projectName: proj?.name ?? '',
+              },
             }),
           ),
         );
@@ -304,7 +370,9 @@ export class TasksService {
     if (!task) throw new NotFoundException('Task not found');
 
     if (!['approved', 'done'].includes(task.status)) {
-      throw new BadRequestException('Task must be in approved or done status to submit for client review');
+      throw new BadRequestException(
+        'Task must be in approved or done status to submit for client review',
+      );
     }
     if (task.client_approval === 'pending') {
       throw new BadRequestException('Task is already pending client review');
@@ -347,7 +415,9 @@ export class TasksService {
   }
 
   private async getAccessibleProject(projectId: string, actor: JwtPayload) {
-    const isAgent = ['marketing_agent', 'production_agent'].includes(actor.role);
+    const isAgent = ['marketing_agent', 'production_agent'].includes(
+      actor.role,
+    );
     return this.prisma.projects.findFirst({
       where: {
         id: projectId,
@@ -357,14 +427,34 @@ export class TasksService {
   }
 
   private formatTask(t: {
-    id: string; title: string; description: string | null; department: string;
-    status: string; priority: string; due_date: Date | null; revision_count: number;
-    project_id: string; created_by: string; created_at: Date; updated_at: Date;
-    client_approval?: string; client_rejection_comment?: string | null;
+    id: string;
+    title: string;
+    description: string | null;
+    department: string;
+    status: string;
+    priority: string;
+    due_date: Date | null;
+    revision_count: number;
+    project_id: string;
+    created_by: string;
+    created_at: Date;
+    updated_at: Date;
+    client_approval?: string;
+    client_rejection_comment?: string | null;
     client_reviewed_at?: Date | null;
     project?: { id: string; name: string; client?: { company_name: string } };
-    task_assignees?: { user_id: string; user: { id: string; full_name: string; role: string } }[];
-    attachments?: { id: string; filename: string; file_size: number; mime_type: string; created_at: Date; uploader?: { id: string; full_name: string } | null }[];
+    task_assignees?: {
+      user_id: string;
+      user: { id: string; full_name: string; role: string };
+    }[];
+    attachments?: {
+      id: string;
+      filename: string;
+      file_size: number;
+      mime_type: string;
+      created_at: Date;
+      uploader?: { id: string; full_name: string } | null;
+    }[];
     _count?: { comments: number };
   }) {
     return {
@@ -384,7 +474,11 @@ export class TasksService {
       clientRejectionComment: t.client_rejection_comment ?? null,
       clientReviewedAt: t.client_reviewed_at?.toISOString() ?? null,
       project: t.project
-        ? { id: t.project.id, name: t.project.name, clientName: t.project.client?.company_name }
+        ? {
+            id: t.project.id,
+            name: t.project.name,
+            clientName: t.project.client?.company_name,
+          }
         : undefined,
       assignees: (t.task_assignees ?? []).map((a) => ({
         id: a.user.id,
@@ -397,7 +491,9 @@ export class TasksService {
         fileSize: a.file_size,
         mimeType: a.mime_type,
         createdAt: a.created_at.toISOString(),
-        uploadedBy: a.uploader ? { id: a.uploader.id, fullName: a.uploader.full_name } : null,
+        uploadedBy: a.uploader
+          ? { id: a.uploader.id, fullName: a.uploader.full_name }
+          : null,
       })),
       commentsCount: t._count?.comments ?? 0,
     };

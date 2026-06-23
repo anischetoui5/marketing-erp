@@ -10,8 +10,6 @@ import { AuditLogService } from '../audit-log/audit-log.service';
 describe('AuthService', () => {
   let service: AuthService;
   let prisma: jest.Mocked<PrismaService>;
-  let jwtService: jest.Mocked<JwtService>;
-  let configService: jest.Mocked<ConfigService>;
   let auditLogService: jest.Mocked<AuditLogService>;
 
   const mockUser = {
@@ -78,17 +76,15 @@ describe('AuthService', () => {
 
     service = module.get<AuthService>(AuthService);
     prisma = module.get(PrismaService);
-    jwtService = module.get(JwtService);
-    configService = module.get(ConfigService);
     auditLogService = module.get(AuditLogService);
   });
 
   describe('login', () => {
     it('throws UnauthorizedException for unknown email', async () => {
       (prisma.users.findUnique as jest.Mock).mockResolvedValue(null);
-      await expect(service.login({ email: 'x@x.com', password: 'pass' })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.login({ email: 'x@x.com', password: 'pass' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('throws UnauthorizedException for wrong password', async () => {
@@ -100,7 +96,10 @@ describe('AuthService', () => {
     });
 
     it('throws UnauthorizedException for locked account', async () => {
-      const lockedUser = { ...mockUser, locked_until: new Date(Date.now() + 60000) };
+      const lockedUser = {
+        ...mockUser,
+        locked_until: new Date(Date.now() + 60000),
+      };
       (prisma.users.findUnique as jest.Mock).mockResolvedValue(lockedUser);
       await expect(
         service.login({ email: mockUser.email, password: 'TestPass123!' }),
@@ -113,7 +112,10 @@ describe('AuthService', () => {
       (prisma.refresh_tokens.create as jest.Mock).mockResolvedValue({});
       (auditLogService.log as jest.Mock).mockResolvedValue(undefined);
 
-      const result = await service.login({ email: mockUser.email, password: 'TestPass123!' });
+      const result = await service.login({
+        email: mockUser.email,
+        password: 'TestPass123!',
+      });
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('refreshToken');
       expect(result.user.email).toBe(mockUser.email);

@@ -22,7 +22,9 @@ export class AiInsightsController {
   @Get(':projectId/insights/latest')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'marketing_manager', 'marketing_agent')
-  @ApiOperation({ summary: 'Get the latest successful AI insight for a project' })
+  @ApiOperation({
+    summary: 'Get the latest successful AI insight for a project',
+  })
   async getLatestInsight(@Param('projectId') projectId: string) {
     return { data: await this.aiInsightsService.getLatestInsight(projectId) };
   }
