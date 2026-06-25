@@ -58,7 +58,13 @@ export class MetaAdsController {
 
   @Get('sync/:projectId/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'marketing_manager')
+  @Roles(
+    'admin',
+    'marketing_manager',
+    'marketing_agent',
+    'production_manager',
+    'production_agent',
+  )
   @ApiOperation({ summary: 'Get latest sync job status for a project' })
   async getSyncStatus(@Param('projectId') projectId: string) {
     return { data: await this.metaAdsService.getSyncStatus(projectId) };
@@ -66,7 +72,13 @@ export class MetaAdsController {
 
   @Get('sync/:projectId/history')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'marketing_manager')
+  @Roles(
+    'admin',
+    'marketing_manager',
+    'marketing_agent',
+    'production_manager',
+    'production_agent',
+  )
   @ApiOperation({ summary: 'Get sync job history for a project' })
   async getSyncHistory(@Param('projectId') projectId: string) {
     return { data: await this.metaAdsService.getSyncHistory(projectId) };

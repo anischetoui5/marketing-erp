@@ -13,7 +13,13 @@ export class AiInsightsController {
 
   @Get(':projectId/insights')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'marketing_manager', 'marketing_agent')
+  @Roles(
+    'admin',
+    'marketing_manager',
+    'marketing_agent',
+    'production_manager',
+    'production_agent',
+  )
   @ApiOperation({ summary: 'List AI insights for a project' })
   async getInsights(@Param('projectId') projectId: string) {
     return { data: await this.aiInsightsService.getInsights(projectId) };
@@ -21,7 +27,13 @@ export class AiInsightsController {
 
   @Get(':projectId/insights/latest')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'marketing_manager', 'marketing_agent')
+  @Roles(
+    'admin',
+    'marketing_manager',
+    'marketing_agent',
+    'production_manager',
+    'production_agent',
+  )
   @ApiOperation({
     summary: 'Get the latest successful AI insight for a project',
   })

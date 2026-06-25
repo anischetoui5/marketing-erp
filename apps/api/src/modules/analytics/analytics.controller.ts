@@ -18,7 +18,13 @@ export class AnalyticsController {
 
   @Get('overview')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'marketing_manager', 'marketing_agent')
+  @Roles(
+    'admin',
+    'marketing_manager',
+    'marketing_agent',
+    'production_manager',
+    'production_agent',
+  )
   @ApiOperation({
     summary:
       'Aggregate daily spend/impressions/clicks across all projects (last N days)',
@@ -39,7 +45,13 @@ export class AnalyticsController {
 
   @Get(':projectId/summary')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'marketing_manager', 'marketing_agent')
+  @Roles(
+    'admin',
+    'marketing_manager',
+    'marketing_agent',
+    'production_manager',
+    'production_agent',
+  )
   @ApiOperation({ summary: 'Get aggregated KPI summary for a project' })
   @ApiQuery({ name: 'dateFrom', required: false })
   @ApiQuery({ name: 'dateTo', required: false })
@@ -62,7 +74,13 @@ export class AnalyticsController {
 
   @Get(':projectId/campaigns')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'marketing_manager', 'marketing_agent')
+  @Roles(
+    'admin',
+    'marketing_manager',
+    'marketing_agent',
+    'production_manager',
+    'production_agent',
+  )
   @ApiOperation({ summary: 'Get per-campaign KPI breakdown' })
   async getCampaigns(
     @Param('projectId') projectId: string,
@@ -80,7 +98,13 @@ export class AnalyticsController {
 
   @Get(':projectId/daily')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'marketing_manager', 'marketing_agent')
+  @Roles(
+    'admin',
+    'marketing_manager',
+    'marketing_agent',
+    'production_manager',
+    'production_agent',
+  )
   @ApiOperation({ summary: 'Get daily time-series data for charting' })
   async getDaily(
     @Param('projectId') projectId: string,
@@ -100,7 +124,13 @@ export class AnalyticsController {
 
   @Get(':projectId/top-campaigns')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'marketing_manager')
+  @Roles(
+    'admin',
+    'marketing_manager',
+    'marketing_agent',
+    'production_manager',
+    'production_agent',
+  )
   @ApiOperation({ summary: 'Get top 5 campaigns by ROAS and by spend' })
   async getTopCampaigns(@Param('projectId') projectId: string) {
     return { data: await this.analyticsService.getTopCampaigns(projectId) };
