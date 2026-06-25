@@ -86,7 +86,10 @@ export class UsersService {
       newState: { email: dto.email, role: dto.role },
     });
 
-    return user;
+    return {
+      ...user,
+      invitationPath: `/accept-invitation?token=${invitationToken}`,
+    };
   }
 
   async acceptInvitation(dto: AcceptInvitationDto) {

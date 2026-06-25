@@ -38,11 +38,12 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({
     summary:
-      'Create user and send invitation (admin: any role | managers: own agent type only)',
+      'Create user and generate invitation link (admin: any role | managers: own agent type only)',
   })
   @ApiResponse({
     status: 201,
-    description: 'User created and invitation queued',
+    description:
+      'User created; response includes invitationPath to share with the invitee',
   })
   @ApiResponse({ status: 409, description: 'Email already in use' })
   async create(@Body() dto: CreateUserDto, @CurrentUser() user: JwtPayload) {

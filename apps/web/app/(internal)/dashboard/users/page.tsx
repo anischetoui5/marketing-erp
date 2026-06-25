@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Plus, X, Send } from 'lucide-react';
+import { Users, Plus, X, Send, Copy, Check } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/lib/api';
 
@@ -53,7 +53,8 @@ export default function UsersPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [inviteLink, setInviteLink] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const creatableRoles = user ? (CREATABLE_ROLES[user.role] ?? []) : [];
   const isManager = user?.role === 'marketing_manager' || user?.role === 'production_manager';
@@ -91,16 +92,16 @@ export default function UsersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setSuccess('');
+    setInviteLink('');
     setSaving(true);
     try {
-      await api.post('/api/users', {
+      const { data } = await api.post('/api/users', {
         email: form.email,
         fullName: form.fullName,
         role: form.role,
         department: form.department || undefined,
       });
-      setSuccess(`Invitation sent to ${form.email}`);
+      setInviteLink(`${window.location.origin}${data.data.invitationPath}`);
       setForm({ email: '', fullName: '', role: defaultRole, department: '' });
       setShowForm(false);
       await loadUsers();
@@ -129,7 +130,7 @@ export default function UsersPage() {
         {creatableRoles.length > 0 && (
           <motion.button
             whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-            onClick={() => { setShowForm((v) => !v); setError(''); setSuccess(''); }}
+            onClick={() => { setShowForm((v) => !v); setError(''); setInviteLink(''); }}
             style={{ height: 36, padding: '0 16px', display: 'flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg, #4E5ABF, #7B6CF0)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600 }}
           >
             {showForm ? <X size={13} /> : <Plus size={13} />}
@@ -138,15 +139,36 @@ export default function UsersPage() {
         )}
       </div>
 
-      {/* Success banner */}
+      {/* Invitation link banner */}
       <AnimatePresence>
-        {success && (
+        {inviteLink && (
           <motion.div
             initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 8, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#15803d', display: 'flex', alignItems: 'center', gap: 8 }}
+            style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 8, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)' }}
           >
-            <Send size={12} />
-            {success}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <Send size={12} style={{ color: '#15803d', flexShrink: 0 }} />
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#15803d' }}>
+                User created — no email is sent automatically. Share this invitation link with them:
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <code style={{ flex: 1, padding: '8px 10px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {inviteLink}
+              </code>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(inviteLink);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                style={{ height: 32, padding: '0 12px', display: 'flex', alignItems: 'center', gap: 6, background: copied ? '#15803d' : 'var(--surface-2)', color: copied ? '#fff' : 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600, flexShrink: 0 }}
+              >
+                {copied ? <Check size={12} /> : <Copy size={12} />}
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
