@@ -3,15 +3,39 @@
 import { useEffect, useState, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Calendar, ChevronRight, ChevronLeft, Send, Trash2, AlertCircle, CheckSquare } from 'lucide-react';
+import { MessageSquare, Calendar, ChevronRight, ChevronLeft, Send, Trash2, AlertCircle, CheckSquare, Plus, X } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import {
-  getTasks, updateTaskStatus, getComments, addComment, deleteComment,
+  getTasks, createTask, updateTaskStatus, getComments, addComment, deleteComment,
   type Task, type Comment,
 } from '@/lib/tasks';
 import { getProjects } from '@/lib/projects';
+import { api } from '@/lib/api';
 import { Drawer } from '@/components/ui/drawer';
 import { Skeleton } from '@/components/ui/skeleton';
+
+const INPUT_STYLE: React.CSSProperties = {
+  width: '100%',
+  padding: '9px 12px',
+  background: 'var(--surface-2)',
+  border: '1px solid var(--border)',
+  borderRadius: 8,
+  color: 'var(--text)',
+  fontFamily: "'DM Mono', monospace",
+  fontSize: 11,
+  outline: 'none',
+  boxSizing: 'border-box',
+};
+
+const LABEL_STYLE: React.CSSProperties = {
+  fontFamily: "'DM Mono', monospace",
+  fontSize: 9,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  color: 'var(--text-2)',
+  display: 'block',
+  marginBottom: 6,
+};
 
 const COLUMNS: { key: string; label: string; accent: string }[] = [
   { key: 'todo',        label: 'Todo',        accent: '#94a3b8' },
@@ -402,6 +426,174 @@ function TaskDrawer({ task, open, onClose, onStatusChange }: {
   );
 }
 
+function NewTaskModal({
+  projects,
+  onClose,
+  onSuccess,
+}: {
+  projects: { id: string; name: string }[];
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [projectId, setProjectId] = useState(projects[0]?.id ?? '');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [department, setDepartment] = useState('marketing');
+  const [priority, setPriority] = useState('medium');
+  const [dueDate, setDueDate] = useState('');
+  const [users, setUsers] = useState<{ id: string; fullName: string; role: string }[]>([]);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.get('/api/users?limit=100')
+      .then(({ data }) => setUsers(
+        (data.data?.items ?? []).map((u: { id: string; full_name?: string; fullName?: string; role: string }) => ({
+          id: u.id, fullName: u.fullName ?? u.full_name ?? '', role: u.role,
+        }))
+      ))
+      .catch(() => {});
+  }, []);
+
+  const toggleAssignee = (id: string) => {
+    setAssigneeIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  };
+
+  const handleSubmit = async () => {
+    if (!projectId) { setError('Select a project'); return; }
+    if (!title.trim()) { setError('Title is required'); return; }
+    setError('');
+    setLoading(true);
+    try {
+      await createTask({
+        projectId,
+        title: title.trim(),
+        description: description.trim() || undefined,
+        department,
+        priority,
+        dueDate: dueDate || undefined,
+        assigneeIds: assigneeIds.length > 0 ? assigneeIds : undefined,
+      });
+      onSuccess();
+      onClose();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : (msg ?? 'Failed to create task'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.96, y: 10 }}
+          style={{ width: 460, maxHeight: '85vh', overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 14, padding: 28, boxShadow: 'var(--card-shadow)' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <CheckSquare size={15} style={{ color: '#7B6CF0' }} />
+              <span style={{ fontFamily: "'Syne', sans-serif", fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>New Task</span>
+            </div>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)' }}>
+              <X size={16} />
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={LABEL_STYLE}>Project</label>
+              <select value={projectId} onChange={(e) => setProjectId(e.target.value)} style={INPUT_STYLE}>
+                {projects.length === 0 && <option value="">No active projects</option>}
+                {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label style={LABEL_STYLE}>Title</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Design Instagram carousel"
+                style={INPUT_STYLE}
+              />
+            </div>
+
+            <div>
+              <label style={LABEL_STYLE}>Description (optional)</label>
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Brief description of the task"
+                style={INPUT_STYLE}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={LABEL_STYLE}>Department</label>
+                <select value={department} onChange={(e) => setDepartment(e.target.value)} style={INPUT_STYLE}>
+                  <option value="marketing">Marketing</option>
+                  <option value="production">Production</option>
+                </select>
+              </div>
+              <div>
+                <label style={LABEL_STYLE}>Priority</label>
+                <select value={priority} onChange={(e) => setPriority(e.target.value)} style={INPUT_STYLE}>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label style={LABEL_STYLE}>Due Date (optional)</label>
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={INPUT_STYLE} />
+            </div>
+
+            <div>
+              <label style={LABEL_STYLE}>Assignees (optional)</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 140, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8, padding: 8 }}>
+                {users.length === 0 ? (
+                  <p style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text-3)', margin: 0 }}>Loading users…</p>
+                ) : users.map((u) => (
+                  <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', borderRadius: 6, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={assigneeIds.includes(u.id)} onChange={() => toggleAssignee(u.id)} />
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--text)' }}>{u.fullName}</span>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--text-3)', marginLeft: 'auto' }}>{u.role.replace(/_/g, ' ')}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {error && (
+              <p style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#fb7185', margin: 0 }}>{error}</p>
+            )}
+
+            <motion.button
+              onClick={handleSubmit}
+              disabled={loading}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              style={{ padding: '10px', background: 'linear-gradient(135deg, #4E5ABF 0%, #7B6CF0 100%)', border: 'none', borderRadius: 8, color: '#fff', fontFamily: "'DM Mono', monospace", fontSize: 11, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', letterSpacing: '0.06em', opacity: loading ? 0.6 : 1 }}
+            >
+              {loading ? 'Creating…' : 'Create Task'}
+            </motion.button>
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+}
+
 function TasksBoard() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -413,6 +605,8 @@ function TasksBoard() {
   const [filterProject, setFilterProject] = useState(searchParams.get('projectId') ?? '');
   const [filterDept, setFilterDept] = useState('');
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  const [showNewTask, setShowNewTask] = useState(false);
+  const canCreate = user?.role === 'admin' || user?.role === 'marketing_manager' || user?.role === 'production_manager';
 
   useEffect(() => {
     if (!user) { router.replace('/login'); return; }
@@ -472,6 +666,16 @@ function TasksBoard() {
             <option value="marketing">Marketing</option>
             <option value="production">Production</option>
           </select>
+          {canCreate && (
+            <motion.button
+              whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={() => setShowNewTask(true)}
+              style={{ height: 34, padding: '0 14px', display: 'flex', alignItems: 'center', gap: 6, background: 'linear-gradient(135deg, #4E5ABF, #7B6CF0)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 10, fontWeight: 600 }}
+            >
+              <Plus size={13} />
+              New Task
+            </motion.button>
+          )}
         </div>
       </div>
 
@@ -520,6 +724,14 @@ function TasksBoard() {
       )}
 
       <TaskDrawer task={selectedTask} open={drawerOpen} onClose={() => setDrawerOpen(false)} onStatusChange={handleStatusChange} />
+
+      {showNewTask && (
+        <NewTaskModal
+          projects={projects}
+          onClose={() => setShowNewTask(false)}
+          onSuccess={loadTasks}
+        />
+      )}
     </div>
   );
 }
